@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Compile Swift to executable
+swiftc CodeController.swift -o CodeController
+
+# Create .app bundle structure
+mkdir -p CodeController.app/Contents/MacOS
+mv CodeController CodeController.app/Contents/MacOS/
+
+# Create Info.plist
+cat > CodeController.app/Contents/Info.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>CodeController</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.local.codecontroller</string>
+    <key>CFBundleName</key>
+    <string>CodeController</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.15</string>
+    <key>LSUIElement</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+echo "Built CodeController.app"
+echo "Move it to /Applications, run it, then grant Accessibility to just that app"
