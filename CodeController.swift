@@ -73,27 +73,8 @@ var yButtonState = false
 // Create isolated event source (won't pick up modifiers from other apps)
 let eventSource = CGEventSource(stateID: .privateState)
 
-// Modifier keycodes
-let kVK_Command: CGKeyCode = 55
-let kVK_Shift: CGKeyCode = 56
-let kVK_Option: CGKeyCode = 58
-let kVK_Control: CGKeyCode = 59
-
-func releaseAllModifiers() {
-    // Release all modifier keys to clear any stuck state
-    for keyCode in [kVK_Command, kVK_Shift, kVK_Option, kVK_Control] {
-        let event = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: false)
-        event?.post(tap: .cgSessionEventTap)
-    }
-}
-
 func pressKey(_ keyCode: CGKeyCode, down: Bool, modifiers: CGEventFlags = []) {
-    // On key down, release any stuck modifiers first (unless we want modifiers)
-    if down && modifiers.isEmpty {
-        releaseAllModifiers()
-    }
     let event = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: down)
-    // Always explicitly set flags (empty if no modifiers)
     event?.flags = modifiers
     event?.post(tap: .cgSessionEventTap)
 }
@@ -153,9 +134,9 @@ func handleButtonState(_ name: String, pressed: Bool) {
 func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool) {
     if dpadStates["up"] != up {
         dpadStates["up"] = up
-        if ltHeld {
-            pressKey(50, down: up, modifiers: .maskCommand)  // Cmd+` next window
-            if up { print("LT+D-pad UP -> Cmd+`") }
+        if ltHeld && up {
+            tapKey(50, modifiers: .maskCommand)  // Cmd+` next window
+            print("LT+D-pad UP -> Cmd+`")
         } else {
             pressKey(dpadUp, down: up)
             if up { print("D-pad UP") }
@@ -163,9 +144,9 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     }
     if dpadStates["down"] != down {
         dpadStates["down"] = down
-        if ltHeld {
-            pressKey(50, down: down, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+` prev window
-            if down { print("LT+D-pad DOWN -> Cmd+Shift+`") }
+        if ltHeld && down {
+            tapKey(50, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+` prev window
+            print("LT+D-pad DOWN -> Cmd+Shift+`")
         } else {
             pressKey(dpadDown, down: down)
             if down { print("D-pad DOWN") }
@@ -173,9 +154,9 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     }
     if dpadStates["left"] != left {
         dpadStates["left"] = left
-        if ltHeld {
-            pressKey(33, down: left, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+[ prev tab
-            if left { print("LT+D-pad LEFT -> Cmd+Shift+[") }
+        if ltHeld && left {
+            tapKey(33, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+[ prev tab
+            print("LT+D-pad LEFT -> Cmd+Shift+[")
         } else {
             pressKey(dpadLeft, down: left)
             if left { print("D-pad LEFT") }
@@ -183,9 +164,9 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     }
     if dpadStates["right"] != right {
         dpadStates["right"] = right
-        if ltHeld {
-            pressKey(30, down: right, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+] next tab
-            if right { print("LT+D-pad RIGHT -> Cmd+Shift+]") }
+        if ltHeld && right {
+            tapKey(30, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+] next tab
+            print("LT+D-pad RIGHT -> Cmd+Shift+]")
         } else {
             pressKey(dpadRight, down: right)
             if right { print("D-pad RIGHT") }
@@ -269,7 +250,10 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let yPressed = gamepad.buttonY.isPressed
     if yButtonState != yPressed {
         yButtonState = yPressed
-        if ltHeld {
+        if lbHeld {
+            pressKey(17, down: yPressed, modifiers: .maskAlternate)  // Option+T
+            if yPressed { print("LB+Y -> Option+T") }
+        } else if ltHeld {
             pressKey(48, down: yPressed, modifiers: .maskShift)  // Shift+Tab
             if yPressed { print("LT+Y -> Shift+Tab") }
         } else {
@@ -341,11 +325,14 @@ func pollController(_ gamepad: GCExtendedGamepad) {
         scroll(dx: dx, dy: dy)
     }
     
-    // Back/View button -> Ctrl+O (or Ctrl+E when LT held)
+    // Back/View button -> Ctrl+O (or Ctrl+E when LT held, or Ctrl+B when LB held)
     let optionsPressed = gamepad.buttonOptions?.isPressed ?? false
     if optionsButtonState != optionsPressed {
         optionsButtonState = optionsPressed
-        if ltHeld {
+        if lbHeld {
+            pressKey(11, down: optionsPressed, modifiers: .maskControl)  // Ctrl+B
+            if optionsPressed { print("LB+Back -> Ctrl+B") }
+        } else if ltHeld {
             pressKey(14, down: optionsPressed, modifiers: .maskControl)  // Ctrl+E
             if optionsPressed { print("LT+Back -> Ctrl+E") }
         } else {
