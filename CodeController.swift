@@ -71,17 +71,32 @@ var yButtonState = false
 // MARK: - Keyboard simulation
 
 // Create isolated event source (won't pick up modifiers from other apps)
-let eventSource = CGEventSource(stateID: .privateState)
+let eventSource = CGEventSource(stateID: .hidSystemState)
 
 func pressKey(_ keyCode: CGKeyCode, down: Bool, modifiers: CGEventFlags = []) {
     let event = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: down)
     event?.flags = modifiers
-    event?.post(tap: .cgSessionEventTap)
+    event?.post(tap: .cghidEventTap)
 }
 
 func tapKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags = []) {
+    // Post explicit modifier key events so system shortcuts see real key state
+    let modifierKeys: [(CGEventFlags, CGKeyCode)] = [
+        (.maskCommand, 55), (.maskShift, 56), (.maskAlternate, 58), (.maskControl, 59)
+    ]
+    let activeModifiers = modifierKeys.filter { modifiers.contains($0.0) }
+    for (flag, key) in activeModifiers {
+        let down = CGEvent(keyboardEventSource: eventSource, virtualKey: key, keyDown: true)
+        down?.flags = flag
+        down?.post(tap: .cghidEventTap)
+    }
     pressKey(keyCode, down: true, modifiers: modifiers)
     pressKey(keyCode, down: false, modifiers: modifiers)
+    for (flag, key) in activeModifiers.reversed() {
+        let up = CGEvent(keyboardEventSource: eventSource, virtualKey: key, keyDown: false)
+        up?.flags = []
+        up?.post(tap: .cghidEventTap)
+    }
 }
 
 // Smooth scrolling
@@ -131,12 +146,43 @@ func handleButtonState(_ name: String, pressed: Bool) {
     }
 }
 
+func cycleWindows(forward: Bool) {
+    let script: String
+    if forward {
+        script = """
+        tell application "System Events"
+            set the_app to name of the first process whose frontmost is true
+        end tell
+        tell application the_app
+            set n to count of windows
+            if n > 1 then set index of window 1 to n
+        end tell
+        """
+    } else {
+        script = """
+        tell application "System Events"
+            set the_app to name of the first process whose frontmost is true
+        end tell
+        tell application the_app
+            set n to count of windows
+            if n > 1 then set index of window n to 1
+        end tell
+        """
+    }
+    DispatchQueue.global().async {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        proc.arguments = ["-e", script]
+        try? proc.run()
+    }
+}
+
 func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool) {
     if dpadStates["up"] != up {
         dpadStates["up"] = up
         if ltHeld && up {
-            tapKey(50, modifiers: .maskCommand)  // Cmd+` next window
-            print("LT+D-pad UP -> Cmd+`")
+            cycleWindows(forward: true)
+            print("LT+D-pad UP -> Next window")
         } else {
             pressKey(dpadUp, down: up)
             if up { print("D-pad UP") }
@@ -145,8 +191,8 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     if dpadStates["down"] != down {
         dpadStates["down"] = down
         if ltHeld && down {
-            tapKey(50, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+` prev window
-            print("LT+D-pad DOWN -> Cmd+Shift+`")
+            cycleWindows(forward: false)
+            print("LT+D-pad DOWN -> Prev window")
         } else {
             pressKey(dpadDown, down: down)
             if down { print("D-pad DOWN") }
@@ -250,15 +296,12 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let yPressed = gamepad.buttonY.isPressed
     if yButtonState != yPressed {
         yButtonState = yPressed
-        if lbHeld {
-            pressKey(17, down: yPressed, modifiers: .maskAlternate)  // Option+T
-            if yPressed { print("LB+Y -> Option+T") }
-        } else if ltHeld {
+        if ltHeld {
             pressKey(48, down: yPressed, modifiers: .maskShift)  // Shift+Tab
             if yPressed { print("LT+Y -> Shift+Tab") }
         } else {
-            pressKey(48, down: yPressed)  // Tab
-            if yPressed { print("Y -> Tab") }
+            pressKey(17, down: yPressed, modifiers: .maskAlternate)  // Option+T
+            if yPressed { print("Y -> Option+T") }
         }
     }
 
