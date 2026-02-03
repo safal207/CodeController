@@ -68,15 +68,23 @@ var optionsButtonState = false
 var xButtonState = false
 var yButtonState = false
 
+// Scroll momentum
+var scrollVelocityX: Float = 0
+var scrollVelocityY: Float = 0
+
+// Mouse momentum
+var mouseVelocityX: Double = 0
+var mouseVelocityY: Double = 0
+
 // MARK: - Keyboard simulation
 
 // Create isolated event source (won't pick up modifiers from other apps)
-let eventSource = CGEventSource(stateID: .hidSystemState)
+let eventSource = CGEventSource(stateID: .privateState)
 
 func pressKey(_ keyCode: CGKeyCode, down: Bool, modifiers: CGEventFlags = []) {
     let event = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: down)
     event?.flags = modifiers
-    event?.post(tap: .cghidEventTap)
+    event?.post(tap: .cgSessionEventTap)
 }
 
 func tapKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags = []) {
@@ -88,32 +96,32 @@ func tapKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags = []) {
     for (flag, key) in activeModifiers {
         let down = CGEvent(keyboardEventSource: eventSource, virtualKey: key, keyDown: true)
         down?.flags = flag
-        down?.post(tap: .cghidEventTap)
+        down?.post(tap: .cgSessionEventTap)
     }
     pressKey(keyCode, down: true, modifiers: modifiers)
     pressKey(keyCode, down: false, modifiers: modifiers)
-    for (flag, key) in activeModifiers.reversed() {
+    for (_, key) in activeModifiers.reversed() {
         let up = CGEvent(keyboardEventSource: eventSource, virtualKey: key, keyDown: false)
         up?.flags = []
-        up?.post(tap: .cghidEventTap)
+        up?.post(tap: .cgSessionEventTap)
     }
 }
 
 // Smooth scrolling
 func scroll(dx: Int32, dy: Int32) {
     if let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: dy, wheel2: dx, wheel3: 0) {
-        event.post(tap: .cghidEventTap)
+        event.post(tap: .cgSessionEventTap)
     }
 }
 
-// Mouse movement
+// Mouse movement — use session tap to avoid jitter
 func moveMouse(dx: Double, dy: Double) {
     let currentLocation = CGEvent(source: nil)?.location ?? .zero
     let newX = currentLocation.x + dx
     let newY = currentLocation.y + dy
-    
+
     if let event = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: newX, y: newY), mouseButton: .left) {
-        event.post(tap: .cghidEventTap)
+        event.post(tap: .cgSessionEventTap)
     }
 }
 
@@ -122,12 +130,12 @@ var mouseDown = false
 func mouseClick(down: Bool) {
     guard mouseDown != down else { return }
     mouseDown = down
-    
+
     let location = CGEvent(source: nil)?.location ?? .zero
     let eventType: CGEventType = down ? .leftMouseDown : .leftMouseUp
-    
+
     if let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: .left) {
-        event.post(tap: .cghidEventTap)
+        event.post(tap: .cgSessionEventTap)
         print("Mouse \(down ? "DOWN" : "UP")")
     }
 }
@@ -146,43 +154,28 @@ func handleButtonState(_ name: String, pressed: Bool) {
     }
 }
 
-func cycleWindows(forward: Bool) {
-    let script: String
-    if forward {
-        script = """
-        tell application "System Events"
-            set the_app to name of the first process whose frontmost is true
-        end tell
-        tell application the_app
-            set n to count of windows
-            if n > 1 then set index of window 1 to n
-        end tell
-        """
-    } else {
-        script = """
-        tell application "System Events"
-            set the_app to name of the first process whose frontmost is true
-        end tell
-        tell application the_app
-            set n to count of windows
-            if n > 1 then set index of window n to 1
-        end tell
-        """
-    }
-    DispatchQueue.global().async {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        proc.arguments = ["-e", script]
-        try? proc.run()
-    }
+// Cycle windows of the frontmost app (raises last window to front)
+func cycleWindows() {
+    guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return }
+    guard let frontPid = windowList.first(where: { ($0[kCGWindowLayer as String] as? Int) == 0 })?[kCGWindowOwnerPID as String] as? pid_t else { return }
+
+    let app = AXUIElementCreateApplication(frontPid)
+    var windowsRef: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+          let axWindows = windowsRef as? [AXUIElement], axWindows.count > 1 else { return }
+
+    let target = axWindows.last!
+    AXUIElementPerformAction(target, kAXRaiseAction as CFString)
+    AXUIElementSetAttributeValue(app, kAXMainWindowAttribute as CFString, target)
+    AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, true as CFTypeRef)
 }
 
-func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool) {
+func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool, lbHeld: Bool) {
     if dpadStates["up"] != up {
         dpadStates["up"] = up
         if ltHeld && up {
-            cycleWindows(forward: true)
-            print("LT+D-pad UP -> Next window")
+            cycleWindows()
+            print("LT+D-pad UP -> Cycle window")
         } else {
             pressKey(dpadUp, down: up)
             if up { print("D-pad UP") }
@@ -191,8 +184,8 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     if dpadStates["down"] != down {
         dpadStates["down"] = down
         if ltHeld && down {
-            cycleWindows(forward: false)
-            print("LT+D-pad DOWN -> Prev window")
+            cycleWindows()
+            print("LT+D-pad DOWN -> Cycle window")
         } else {
             pressKey(dpadDown, down: down)
             if down { print("D-pad DOWN") }
@@ -200,7 +193,10 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     }
     if dpadStates["left"] != left {
         dpadStates["left"] = left
-        if ltHeld && left {
+        if lbHeld && left {
+            tapKey(123, modifiers: .maskControl)  // Ctrl+Left (prev Space)
+            print("LB+D-pad LEFT -> Ctrl+Left (prev Space)")
+        } else if ltHeld && left {
             tapKey(33, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+[ prev tab
             print("LT+D-pad LEFT -> Cmd+Shift+[")
         } else {
@@ -210,7 +206,10 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     }
     if dpadStates["right"] != right {
         dpadStates["right"] = right
-        if ltHeld && right {
+        if lbHeld && right {
+            tapKey(124, modifiers: .maskControl)  // Ctrl+Right (next Space)
+            print("LB+D-pad RIGHT -> Ctrl+Right (next Space)")
+        } else if ltHeld && right {
             tapKey(30, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+] next tab
             print("LT+D-pad RIGHT -> Cmd+Shift+]")
         } else {
@@ -332,40 +331,68 @@ func pollController(_ gamepad: GCExtendedGamepad) {
         down: dpad.down.isPressed,
         left: dpad.left.isPressed,
         right: dpad.right.isPressed,
-        ltHeld: ltHeld
+        ltHeld: ltHeld,
+        lbHeld: lbHeld
     )
     
-    // Left stick -> Mouse movement
+    // Left stick -> Mouse movement with light momentum
     let mouseX = gamepad.leftThumbstick.xAxis.value
     let mouseY = gamepad.leftThumbstick.yAxis.value
     let mouseDeadzone: Float = 0.10
-    let mouseSpeed: Double = 20.0  // Faster cursor
-    
+    let mouseSpeed: Double = 20.0
+    let mouseAccel: Double = 0.35    // faster response than scroll
+    let mouseDecay: Double = 0.7     // quick falloff
+
     if abs(mouseX) > mouseDeadzone || abs(mouseY) > mouseDeadzone {
-        // Apply curve for more aggressive max deflection
-        let curvedX = (mouseX > 0 ? 1.0 : -1.0) * pow(Double(abs(mouseX)), 1.5)
-        let curvedY = (mouseY > 0 ? 1.0 : -1.0) * pow(Double(abs(mouseY)), 1.5)
-        let dx = curvedX * mouseSpeed
-        let dy = -curvedY * mouseSpeed  // Invert Y
-        moveMouse(dx: dx, dy: dy)
+        let curvedX = (mouseX > 0 ? 1.0 : -1.0) * pow(Double(abs(mouseX)), 1.5) * mouseSpeed
+        let curvedY = (mouseY > 0 ? 1.0 : -1.0) * pow(Double(abs(mouseY)), 1.5) * mouseSpeed
+        mouseVelocityX += (curvedX - mouseVelocityX) * mouseAccel
+        mouseVelocityY += (-curvedY - mouseVelocityY) * mouseAccel  // Invert Y
+    } else {
+        mouseVelocityX *= mouseDecay
+        mouseVelocityY *= mouseDecay
+    }
+
+    if abs(mouseVelocityX) > 0.3 || abs(mouseVelocityY) > 0.3 {
+        moveMouse(dx: mouseVelocityX, dy: mouseVelocityY)
     }
     
     // L3 (left stick click) -> Mouse click
     mouseClick(down: gamepad.leftThumbstickButton?.isPressed ?? false)
     
-    // Right stick -> Smooth scrolling
+    // Right stick -> Smooth scrolling with momentum
     let scrollX = gamepad.rightThumbstick.xAxis.value
     let scrollY = gamepad.rightThumbstick.yAxis.value
-    let deadzone: Float = 0.05
-    let scrollSpeed: Float = 25.0  // Higher max speed
-    
+    let deadzone: Float = 0.02
+    let scrollSpeed: Float = 30.0
+    let accel: Float = 0.15      // build-up rate
+
     if abs(scrollX) > deadzone || abs(scrollY) > deadzone {
-        // Apply curve - gentle at low deflection, aggressive at max
-        let curvedX = (scrollX > 0 ? 1.0 : -1.0) * pow(abs(scrollX), 2.5)
-        let curvedY = (scrollY > 0 ? 1.0 : -1.0) * pow(abs(scrollY), 2.5)
-        let dx = Int32(curvedX * scrollSpeed)
-        let dy = Int32(curvedY * scrollSpeed)
-        scroll(dx: dx, dy: dy)
+        // Apply steeper curve - more difference between min and max
+        let curvedX = (scrollX > 0 ? 1.0 : -1.0) * pow(abs(scrollX), 5.5) * scrollSpeed
+        let curvedY = (scrollY > 0 ? 1.0 : -1.0) * pow(abs(scrollY), 5.5) * scrollSpeed
+        // Accelerate toward target velocity
+        scrollVelocityX += (curvedX - scrollVelocityX) * accel
+        scrollVelocityY += (curvedY - scrollVelocityY) * accel
+    } else {
+        // Hybrid decay: multiplicative + flat subtraction
+        // Flat part makes high velocity stop sooner (relatively)
+        let decay: Float = 0.92
+        let flat: Float = 1.0
+        scrollVelocityX *= decay
+        scrollVelocityY *= decay
+        // Subtract flat amount toward zero
+        if scrollVelocityX > flat { scrollVelocityX -= flat }
+        else if scrollVelocityX < -flat { scrollVelocityX += flat }
+        else { scrollVelocityX = 0 }
+        if scrollVelocityY > flat { scrollVelocityY -= flat }
+        else if scrollVelocityY < -flat { scrollVelocityY += flat }
+        else { scrollVelocityY = 0 }
+    }
+
+    // Scroll if velocity above threshold
+    if abs(scrollVelocityX) > 0.5 || abs(scrollVelocityY) > 0.5 {
+        scroll(dx: Int32(scrollVelocityX), dy: Int32(scrollVelocityY))
     }
     
     // Back/View button -> Ctrl+O (or Ctrl+E when LT held, or Ctrl+B when LB held)
@@ -394,6 +421,9 @@ func pollController(_ gamepad: GCExtendedGamepad) {
 }
 
 // MARK: - Main
+freopen("/tmp/codecontroller.log", "a", stdout)
+freopen("/tmp/codecontroller.log", "a", stderr)
+setbuf(stdout, nil)
 print("CodeController (polling mode)")
 print("Press Ctrl+C to quit\n")
 
