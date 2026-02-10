@@ -9,9 +9,10 @@ Gamepad-to-keyboard/mouse remapper for macOS. Maps an Xbox-style controller to k
 - **D-pad** — Arrow keys (with modifier layers for tabs, windows, Spaces)
 - **Face buttons** — Common keys (Return, Escape, Backspace) with modifier layers
 - **Two modifier layers** — LT (Mod 1) and LB (Mod 2) for extended bindings
-- **High-numbered mouse buttons** — Unbound slots emit virtual mouse buttons (10–45) for BetterTouchTool or other tools to pick up
+- **JSON config** — All bindings in `~/.config/codecontroller.json`, editable without recompiling
+- **Virtual mouse buttons** — Unbound slots emit high-numbered mouse buttons for BetterTouchTool
 
-## Button Mapping
+## Default Bindings
 
 ### Sticks
 
@@ -26,23 +27,23 @@ Gamepad-to-keyboard/mouse remapper for macOS. Maps an Xbox-style controller to k
 
 | Button | Normal | LT (Mod 1) | LB (Mod 2) |
 |--------|--------|-------------|------------|
-| A | Return | Mouse 22 | Mouse 34 |
-| B | Escape | Mouse 23 | Cmd+W (close tab) |
-| X | Backspace | Mouse 24 | Mouse 36 |
-| Y | Option+T (thinking) | Shift+Tab (perm mode) | Cmd+T (new tab) |
-| RB | Mouse 19 | Mouse 31 | Mouse 43 |
-| RT | Mouse 21 | — | — |
-| Back/Options | Ctrl+O (verbose) | Ctrl+E (perm explain) | Ctrl+B (background) |
-| Menu | / | Mouse 29 | Mouse 41 |
+| A | Return — Term: submit | Space — Term: scroll page | Mouse 29 |
+| B | Escape — Claude: cancel | Mouse 24 | Cmd+W — Term: close tab |
+| X | Backspace — Term: delete | Mouse 25 | Mouse 30 |
+| Y | Tab — Claude: toggle thinking | Shift+Tab — Claude: toggle perm mode | Cmd+T — Term: new tab |
+| RB | Mouse 22 | Mouse 27 | Mouse 34 |
+| RT | Mouse 21 | Mouse 28 | Mouse 35 |
+| Back | Ctrl+O — Claude: toggle verbose | Ctrl+E — Claude: toggle perm explain | Ctrl+B — Claude: background task |
+| Menu | / — Claude: slash commands | Mouse 26 | Mouse 33 |
 
 ### D-pad
 
 | Direction | Normal | LT (Mod 1) | LB (Mod 2) |
 |-----------|--------|-------------|------------|
-| Up | Arrow Up | Cycle windows | — |
-| Down | Arrow Down | Cycle windows | — |
-| Left | Arrow Left | Cmd+Shift+[ (prev tab) | Ctrl+Left (prev Space) |
-| Right | Arrow Right | Cmd+Shift+] (next tab) | Ctrl+Right (next Space) |
+| Up | Arrow Up — Term: navigate | Cycle windows — macOS | Mouse 31 |
+| Down | Arrow Down — Term: navigate | Cycle windows — macOS | Mouse 32 |
+| Left | Arrow Left — Term: navigate | Cmd+Shift+[ — Term: prev tab | Ctrl+Left — macOS: prev Space |
+| Right | Arrow Right — Term: navigate | Cmd+Shift+] — Term: next tab | Ctrl+Right — macOS: next Space |
 
 ### Modifiers
 
@@ -55,19 +56,73 @@ Gamepad-to-keyboard/mouse remapper for macOS. Maps an Xbox-style controller to k
 
 Slots marked "Mouse N" emit virtual mouse button N. These do nothing by default but can be mapped to actions in BetterTouchTool or similar.
 
-| Mouse Button | Trigger |
-|--------------|---------|
-| 19 | RB |
-| 21 | RT |
-| 22 | LT+A |
-| 23 | LT+B |
-| 24 | LT+X |
-| 29 | LT+Menu |
-| 31 | LT+RB |
-| 34 | LB+A |
-| 36 | LB+X |
-| 41 | LB+Menu |
-| 43 | LB+RB |
+| Mouse | Trigger | Mouse | Trigger |
+|-------|---------|-------|---------|
+| Mouse | Trigger | Mouse | Trigger |
+| 21 | RT | 29 | LB+A |
+| 22 | RB | 30 | LB+X |
+| 24 | LT+B | 31 | LB+D-pad Up |
+| 25 | LT+X | 32 | LB+D-pad Down |
+| 26 | LT+Menu | 33 | LB+Menu |
+| 27 | LT+RB | 34 | LB+RB |
+| 28 | LT+RT | 35 | LB+RT |
+
+## Configuration
+
+Bindings are stored in `~/.config/codecontroller.json`. A default config is written on first launch. Edit the file and restart the app to apply changes.
+
+### Binding types
+
+| Type | Description | Fields |
+|------|-------------|--------|
+| `key` | Hold key (press on button down, release on up) | `key`, `modifiers` |
+| `tap` | Fire once on press (for shortcuts like Cmd+Shift+[) | `key`, `modifiers` |
+| `mouse` | Virtual mouse button (for BetterTouchTool) | `button` |
+| `leftClick` | Real left mouse click | — |
+| `rightClick` | Real right mouse click | — |
+| `cycleWindows` | Raise next window of frontmost app | — |
+
+### Example bindings
+
+```json
+{ "type": "key",          "key": "return" }
+{ "type": "key",          "key": "w",     "modifiers": ["command"] }
+{ "type": "tap",          "key": "[",     "modifiers": ["command", "shift"] }
+{ "type": "mouse",        "button": 22 }
+{ "type": "leftClick" }
+{ "type": "cycleWindows" }
+```
+
+### Available key names
+
+Letters (`a`-`z`), numbers (`0`-`9`), `return`, `tab`, `space`, `backspace`, `escape`, `delete`, arrow keys (`up`/`down`/`left`/`right`), function keys (`f1`-`f12`), punctuation (`/`, `[`, `]`, `-`, `=`, `;`, `'`, `,`, `.`, `` ` ``), navigation (`home`, `end`, `pageup`, `pagedown`).
+
+### Available modifiers
+
+`command`/`cmd`, `shift`, `option`/`alt`, `control`/`ctrl`
+
+### Binding keys
+
+Base buttons: `a`, `b`, `x`, `y`, `rb`, `rt`, `back`, `menu`, `l3`, `r3`, `dpad_up`, `dpad_down`, `dpad_left`, `dpad_right`
+
+Prefix with `lt+` or `lb+` for modifier layers (e.g., `lt+a`, `lb+dpad_left`).
+
+## Claude Code Setup
+
+The default bindings map Y to Tab, which toggles extended thinking in Claude Code. By default, Claude Code uses Tab for autocomplete. To rebind Tab to thinking toggle, add this to `~/.claude/keybindings.json`:
+
+```json
+{
+  "bindings": [
+    {
+      "context": "Chat",
+      "bindings": {
+        "tab": "chat:thinkingToggle"
+      }
+    }
+  ]
+}
+```
 
 ## Setup
 

@@ -1,65 +1,156 @@
 #!/usr/bin/env swift
 
-import Foundation
+import AppKit
 import GameController
 import CoreGraphics
 
-// MARK: - Configuration
+// MARK: - Binding Configuration
 
-// Mouse button assignments (high numbers that nothing uses)
-// BTT can trigger on these
-// Order: Face, Sticks, Back/Menu, Bumpers, Triggers
+struct Binding: Codable {
+    let type: String          // "key", "tap", "mouse", "leftClick", "rightClick", "cycleWindows"
+    var key: String?          // keyboard key name (for "key" and "tap")
+    var modifiers: [String]?  // "command"/"cmd", "shift", "option"/"alt", "control"/"ctrl"
+    var button: Int?          // mouse button number (for "mouse")
+}
 
-// Normal (21-22)
-let mouseRT: CGMouseButton = CGMouseButton(rawValue: 21)!
-let mouseRB: CGMouseButton = CGMouseButton(rawValue: 22)!
+let defaultConfigJSON = """
+{
+  "a":              { "type": "key",          "key": "return" },
+  "b":              { "type": "key",          "key": "escape" },
+  "x":              { "type": "key",          "key": "backspace" },
+  "y":              { "type": "key",          "key": "tab" },
+  "rb":             { "type": "mouse",        "button": 22 },
+  "rt":             { "type": "mouse",        "button": 21 },
+  "back":           { "type": "key",          "key": "o",        "modifiers": ["control"] },
+  "menu":           { "type": "key",          "key": "/" },
+  "dpad_up":        { "type": "key",          "key": "up" },
+  "dpad_down":      { "type": "key",          "key": "down" },
+  "dpad_left":      { "type": "key",          "key": "left" },
+  "dpad_right":     { "type": "key",          "key": "right" },
+  "l3":             { "type": "leftClick" },
+  "r3":             { "type": "rightClick" },
 
-// LT + button (23-28)
-let mouseLT_A: CGMouseButton = CGMouseButton(rawValue: 23)!
-let mouseLT_B: CGMouseButton = CGMouseButton(rawValue: 24)!
-let mouseLT_X: CGMouseButton = CGMouseButton(rawValue: 25)!
-let mouseLT_Menu: CGMouseButton = CGMouseButton(rawValue: 26)!
-let mouseLT_RB: CGMouseButton = CGMouseButton(rawValue: 27)!
-let mouseLT_RT: CGMouseButton = CGMouseButton(rawValue: 28)!
+  "lt+a":           { "type": "key",          "key": "space" },
+  "lt+b":           { "type": "mouse",        "button": 24 },
+  "lt+x":           { "type": "mouse",        "button": 25 },
+  "lt+y":           { "type": "key",          "key": "tab",      "modifiers": ["shift"] },
+  "lt+rb":          { "type": "mouse",        "button": 27 },
+  "lt+rt":          { "type": "mouse",        "button": 28 },
+  "lt+back":        { "type": "key",          "key": "e",        "modifiers": ["control"] },
+  "lt+menu":        { "type": "mouse",        "button": 26 },
+  "lt+dpad_up":     { "type": "cycleWindows" },
+  "lt+dpad_down":   { "type": "cycleWindows" },
+  "lt+dpad_left":   { "type": "tap",          "key": "[",        "modifiers": ["command", "shift"] },
+  "lt+dpad_right":  { "type": "tap",          "key": "]",        "modifiers": ["command", "shift"] },
 
-// LB + button (29-35)
-let mouseLB_A: CGMouseButton = CGMouseButton(rawValue: 29)!
-let mouseLB_X: CGMouseButton = CGMouseButton(rawValue: 30)!
-let mouseLB_Up: CGMouseButton = CGMouseButton(rawValue: 31)!
-let mouseLB_Down: CGMouseButton = CGMouseButton(rawValue: 32)!
-let mouseLB_Menu: CGMouseButton = CGMouseButton(rawValue: 33)!
-let mouseLB_RB: CGMouseButton = CGMouseButton(rawValue: 34)!
-let mouseLB_RT: CGMouseButton = CGMouseButton(rawValue: 35)!
+  "lb+a":           { "type": "mouse",        "button": 29 },
+  "lb+b":           { "type": "key",          "key": "w",        "modifiers": ["command"] },
+  "lb+x":           { "type": "mouse",        "button": 30 },
+  "lb+y":           { "type": "key",          "key": "t",        "modifiers": ["command"] },
+  "lb+rb":          { "type": "mouse",        "button": 34 },
+  "lb+rt":          { "type": "mouse",        "button": 35 },
+  "lb+back":        { "type": "key",          "key": "b",        "modifiers": ["control"] },
+  "lb+menu":        { "type": "mouse",        "button": 33 },
+  "lb+dpad_up":     { "type": "mouse",        "button": 31 },
+  "lb+dpad_down":   { "type": "mouse",        "button": 32 },
+  "lb+dpad_left":   { "type": "tap",          "key": "left",     "modifiers": ["control"] },
+  "lb+dpad_right":  { "type": "tap",          "key": "right",    "modifiers": ["control"] }
+}
+"""
 
-// Helper to send mouse button events
-func pressMouseButton(_ button: CGMouseButton, down: Bool) {
-    let location = CGEvent(source: nil)?.location ?? .zero
-    let eventType: CGEventType = down ? .otherMouseDown : .otherMouseUp
-    if let event = CGEvent(mouseEventSource: eventSource, mouseType: eventType, mouseCursorPosition: location, mouseButton: button) {
-        event.setIntegerValueField(.mouseEventButtonNumber, value: Int64(button.rawValue))
-        event.post(tap: .cgSessionEventTap)
+// Key name -> macOS virtual key code
+let keyNameToCode: [String: CGKeyCode] = [
+    // Letters
+    "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9,
+    "b": 11, "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17,
+    "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38, "k": 40, "n": 45, "m": 46,
+    // Numbers
+    "1": 18, "2": 19, "3": 20, "4": 21, "5": 23, "6": 22, "7": 26, "8": 28, "9": 25, "0": 29,
+    // Special
+    "return": 36, "tab": 48, "space": 49, "backspace": 51, "escape": 53, "delete": 117,
+    // Arrow keys
+    "up": 126, "down": 125, "left": 123, "right": 124,
+    // Function keys
+    "f1": 122, "f2": 120, "f3": 99, "f4": 118, "f5": 96, "f6": 97,
+    "f7": 98, "f8": 100, "f9": 101, "f10": 109, "f11": 103, "f12": 111,
+    // Punctuation
+    "/": 44, "slash": 44, "[": 33, "]": 30, "-": 27, "minus": 27,
+    "=": 24, "equal": 24, ";": 41, "semicolon": 41,
+    "'": 39, "quote": 39, ",": 43, "comma": 43,
+    ".": 47, "period": 47, "\\": 42, "backslash": 42, "`": 50, "grave": 50,
+    // Navigation
+    "home": 115, "end": 119, "pageup": 116, "pagedown": 121,
+]
+
+func resolveKeyCode(_ name: String) -> CGKeyCode? {
+    keyNameToCode[name.lowercased()]
+}
+
+func resolveModifiers(_ names: [String]) -> CGEventFlags {
+    var flags: CGEventFlags = []
+    for name in names {
+        switch name.lowercased() {
+        case "command", "cmd": flags.insert(.maskCommand)
+        case "shift":          flags.insert(.maskShift)
+        case "option", "alt":  flags.insert(.maskAlternate)
+        case "control", "ctrl": flags.insert(.maskControl)
+        default: break
+        }
+    }
+    return flags
+}
+
+func describeBinding(_ b: Binding) -> String {
+    switch b.type {
+    case "key", "tap":
+        let mods = (b.modifiers ?? []).map { $0.capitalized }
+        let key = (b.key ?? "?").capitalized
+        return (mods + [key]).joined(separator: "+")
+    case "mouse":       return "Mouse \(b.button ?? 0)"
+    case "leftClick":   return "Left Click"
+    case "rightClick":  return "Right Click"
+    case "cycleWindows": return "Cycle Windows"
+    default:            return b.type
     }
 }
 
-// Simple button mappings (no modifiers)
-let buttonMappings: [String: CGKeyCode] = [
-    "a": 36,           // Return
-    "b": 53,           // Escape
-]
+// Load bindings from config file, or write defaults
+func loadBindings() -> [String: Binding] {
+    let configDir = NSString("~/.config").expandingTildeInPath
+    let configPath = "\(configDir)/codecontroller.json"
 
-let dpadUp: CGKeyCode = 126
-let dpadDown: CGKeyCode = 125
-let dpadLeft: CGKeyCode = 123
-let dpadRight: CGKeyCode = 124
+    // Try loading from file
+    if FileManager.default.fileExists(atPath: configPath) {
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: configPath))
+            let config = try JSONDecoder().decode([String: Binding].self, from: data)
+            print("Loaded \(config.count) bindings from \(configPath)")
+            return config
+        } catch {
+            print("ERROR: Failed to parse \(configPath): \(error)")
+            print("Using default bindings")
+        }
+    } else {
+        // Write default config
+        do {
+            try FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
+            try defaultConfigJSON.write(toFile: configPath, atomically: true, encoding: .utf8)
+            print("Wrote default config to \(configPath)")
+        } catch {
+            print("WARNING: Could not write default config: \(error)")
+        }
+    }
 
-// MARK: - State tracking
+    // Parse defaults
+    return try! JSONDecoder().decode([String: Binding].self, from: defaultConfigJSON.data(using: .utf8)!)
+}
+
+var bindings = loadBindings()
+
+// MARK: - State Tracking
+
 var buttonStates: [String: Bool] = [:]
-var dpadStates: [String: Bool] = ["up": false, "down": false, "left": false, "right": false]
-var stickKeyStates: [String: Bool] = ["up": false, "down": false, "left": false, "right": false]
-var menuButtonState = false
-var optionsButtonState = false
-var xButtonState = false
-var yButtonState = false
+var activeBindings: [String: String] = [:]  // button name -> binding key that was activated
 
 // Scroll momentum
 var scrollVelocityX: Float = 0
@@ -69,9 +160,12 @@ var scrollVelocityY: Float = 0
 var mouseVelocityX: Double = 0
 var mouseVelocityY: Double = 0
 
-// MARK: - Keyboard simulation
+// Mouse click state
+var mouseDown = false
+var rightMouseDown = false
 
-// Create isolated event source (won't pick up modifiers from other apps)
+// MARK: - Event Simulation
+
 let eventSource = CGEventSource(stateID: .privateState)
 
 func pressKey(_ keyCode: CGKeyCode, down: Bool, modifiers: CGEventFlags = []) {
@@ -81,7 +175,6 @@ func pressKey(_ keyCode: CGKeyCode, down: Bool, modifiers: CGEventFlags = []) {
 }
 
 func tapKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags = []) {
-    // Post explicit modifier key events so system shortcuts see real key state
     let modifierKeys: [(CGEventFlags, CGKeyCode)] = [
         (.maskCommand, 55), (.maskShift, 56), (.maskAlternate, 58), (.maskControl, 59)
     ]
@@ -100,68 +193,50 @@ func tapKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags = []) {
     }
 }
 
-// Smooth scrolling
+func pressMouseButton(_ button: CGMouseButton, down: Bool) {
+    let location = CGEvent(source: nil)?.location ?? .zero
+    let eventType: CGEventType = down ? .otherMouseDown : .otherMouseUp
+    if let event = CGEvent(mouseEventSource: eventSource, mouseType: eventType, mouseCursorPosition: location, mouseButton: button) {
+        event.setIntegerValueField(.mouseEventButtonNumber, value: Int64(button.rawValue))
+        event.post(tap: .cgSessionEventTap)
+    }
+}
+
+func mouseClick(down: Bool) {
+    guard mouseDown != down else { return }
+    mouseDown = down
+    let location = CGEvent(source: nil)?.location ?? .zero
+    let eventType: CGEventType = down ? .leftMouseDown : .leftMouseUp
+    if let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: .left) {
+        event.post(tap: .cgSessionEventTap)
+    }
+}
+
+func rightClick(down: Bool) {
+    guard rightMouseDown != down else { return }
+    rightMouseDown = down
+    let location = CGEvent(source: nil)?.location ?? .zero
+    let eventType: CGEventType = down ? .rightMouseDown : .rightMouseUp
+    if let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: .right) {
+        event.post(tap: .cgSessionEventTap)
+    }
+}
+
+func moveMouse(dx: Double, dy: Double) {
+    let loc = CGEvent(source: nil)?.location ?? .zero
+    if let event = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: loc.x + dx, y: loc.y + dy), mouseButton: .left) {
+        event.post(tap: .cgSessionEventTap)
+    }
+}
+
 func scroll(dx: Int32, dy: Int32) {
     if let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: dy, wheel2: dx, wheel3: 0) {
         event.post(tap: .cgSessionEventTap)
     }
 }
 
-// Mouse movement — use session tap to avoid jitter
-func moveMouse(dx: Double, dy: Double) {
-    let currentLocation = CGEvent(source: nil)?.location ?? .zero
-    let newX = currentLocation.x + dx
-    let newY = currentLocation.y + dy
+// MARK: - Window Cycling
 
-    if let event = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: newX, y: newY), mouseButton: .left) {
-        event.post(tap: .cgSessionEventTap)
-    }
-}
-
-// Mouse click
-var mouseDown = false
-func mouseClick(down: Bool) {
-    guard mouseDown != down else { return }
-    mouseDown = down
-
-    let location = CGEvent(source: nil)?.location ?? .zero
-    let eventType: CGEventType = down ? .leftMouseDown : .leftMouseUp
-
-    if let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: .left) {
-        event.post(tap: .cgSessionEventTap)
-        print("Mouse \(down ? "DOWN" : "UP")")
-    }
-}
-
-var rightMouseDown = false
-func rightClick(down: Bool) {
-    guard rightMouseDown != down else { return }
-    rightMouseDown = down
-
-    let location = CGEvent(source: nil)?.location ?? .zero
-    let eventType: CGEventType = down ? .rightMouseDown : .rightMouseUp
-
-    if let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: .right) {
-        event.post(tap: .cgSessionEventTap)
-        print("Right Mouse \(down ? "DOWN" : "UP")")
-    }
-}
-
-// Track last scroll values for smoothing
-var lastScrollX: Float = 0
-var lastScrollY: Float = 0
-
-func handleButtonState(_ name: String, pressed: Bool) {
-    guard buttonStates[name] != pressed else { return }
-    buttonStates[name] = pressed
-    
-    if let keyCode = buttonMappings[name] {
-        pressKey(keyCode, down: pressed)
-        print("\(name): \(pressed ? "DOWN" : "UP") -> key \(keyCode)")
-    }
-}
-
-// Cycle windows of the frontmost app (raises last window to front)
 func cycleWindows() {
     guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return }
     guard let frontPid = windowList.first(where: { ($0[kCGWindowLayer as String] as? Int) == 0 })?[kCGWindowOwnerPID as String] as? pid_t else { return }
@@ -177,220 +252,93 @@ func cycleWindows() {
     AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, true as CFTypeRef)
 }
 
-func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool, lbHeld: Bool) {
-    if dpadStates["up"] != up {
-        dpadStates["up"] = up
-        if lbHeld && up {
-            pressMouseButton(mouseLB_Up, down: true)
-            pressMouseButton(mouseLB_Up, down: false)
-            print("LB+D-pad UP -> Mouse 31")
-        } else if ltHeld && up {
-            cycleWindows()
-            print("LT+D-pad UP -> Cycle window")
-        } else {
-            pressKey(dpadUp, down: up)
-            if up { print("D-pad UP") }
-        }
-    }
-    if dpadStates["down"] != down {
-        dpadStates["down"] = down
-        if lbHeld && down {
-            pressMouseButton(mouseLB_Down, down: true)
-            pressMouseButton(mouseLB_Down, down: false)
-            print("LB+D-pad DOWN -> Mouse 32")
-        } else if ltHeld && down {
-            cycleWindows()
-            print("LT+D-pad DOWN -> Cycle window")
-        } else {
-            pressKey(dpadDown, down: down)
-            if down { print("D-pad DOWN") }
-        }
-    }
-    if dpadStates["left"] != left {
-        dpadStates["left"] = left
-        if lbHeld && left {
-            tapKey(123, modifiers: .maskControl)  // Ctrl+Left (prev Space)
-            print("LB+D-pad LEFT -> Ctrl+Left (prev Space)")
-        } else if ltHeld && left {
-            tapKey(33, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+[ prev tab
-            print("LT+D-pad LEFT -> Cmd+Shift+[")
-        } else {
-            pressKey(dpadLeft, down: left)
-            if left { print("D-pad LEFT") }
-        }
-    }
-    if dpadStates["right"] != right {
-        dpadStates["right"] = right
-        if lbHeld && right {
-            tapKey(124, modifiers: .maskControl)  // Ctrl+Right (next Space)
-            print("LB+D-pad RIGHT -> Ctrl+Right (next Space)")
-        } else if ltHeld && right {
-            tapKey(30, modifiers: [.maskCommand, .maskShift])  // Cmd+Shift+] next tab
-            print("LT+D-pad RIGHT -> Cmd+Shift+]")
-        } else {
-            pressKey(dpadRight, down: right)
-            if right { print("D-pad RIGHT") }
-        }
+// MARK: - Binding Dispatch
+
+func executeBinding(_ binding: Binding, down: Bool) {
+    switch binding.type {
+    case "key":
+        guard let name = binding.key, let code = resolveKeyCode(name) else { return }
+        pressKey(code, down: down, modifiers: resolveModifiers(binding.modifiers ?? []))
+    case "tap":
+        guard down, let name = binding.key, let code = resolveKeyCode(name) else { return }
+        tapKey(code, modifiers: resolveModifiers(binding.modifiers ?? []))
+    case "mouse":
+        guard let btn = binding.button else { return }
+        pressMouseButton(CGMouseButton(rawValue: UInt32(btn))!, down: down)
+    case "leftClick":
+        mouseClick(down: down)
+    case "rightClick":
+        rightClick(down: down)
+    case "cycleWindows":
+        if down { cycleWindows() }
+    default:
+        break
     }
 }
 
-func handleStickState(x: Float, y: Float) {
-    let deadzone: Float = 0.3
-    
-    let up = y > deadzone
-    let down = y < -deadzone
-    let left = x < -deadzone
-    let right = x > deadzone
-    
-    if stickKeyStates["up"] != up {
-        stickKeyStates["up"] = up
-        pressKey(dpadUp, down: up)
-        if up { print("Stick UP") }
-    }
-    if stickKeyStates["down"] != down {
-        stickKeyStates["down"] = down
-        pressKey(dpadDown, down: down)
-        if down { print("Stick DOWN") }
-    }
-    if stickKeyStates["left"] != left {
-        stickKeyStates["left"] = left
-        pressKey(dpadLeft, down: left)
-        if left { print("Stick LEFT") }
-    }
-    if stickKeyStates["right"] != right {
-        stickKeyStates["right"] = right
-        pressKey(dpadRight, down: right)
-        if right { print("Stick RIGHT") }
+func handleButton(_ name: String, pressed: Bool, ltHeld: Bool, lbHeld: Bool) {
+    guard buttonStates[name] != pressed else { return }
+    buttonStates[name] = pressed
+
+    if pressed {
+        // Pick binding: LB layer > LT layer > base
+        let bindingKey: String
+        if lbHeld, bindings["lb+\(name)"] != nil {
+            bindingKey = "lb+\(name)"
+        } else if ltHeld, bindings["lt+\(name)"] != nil {
+            bindingKey = "lt+\(name)"
+        } else {
+            bindingKey = name
+        }
+        activeBindings[name] = bindingKey
+        if let binding = bindings[bindingKey] {
+            executeBinding(binding, down: true)
+            print("\(bindingKey) -> \(describeBinding(binding))")
+        }
+    } else {
+        // Release the same binding that was activated (prevents stuck keys)
+        if let bindingKey = activeBindings.removeValue(forKey: name),
+           let binding = bindings[bindingKey] {
+            executeBinding(binding, down: false)
+        }
     }
 }
 
 // MARK: - Polling
+
 func pollController(_ gamepad: GCExtendedGamepad) {
-    // Read modifiers first
     let ltHeld = gamepad.leftTrigger.value > 0.5
     let lbHeld = gamepad.leftShoulder.isPressed
 
-    // Face buttons - behavior changes when LT is held
-    let aPressed = gamepad.buttonA.isPressed
-    if buttonStates["a"] != aPressed {
-        buttonStates["a"] = aPressed
-        if lbHeld {
-            pressMouseButton(mouseLB_A, down: aPressed)
-            if aPressed { print("LB+A -> Mouse 29") }
-        } else if ltHeld {
-            pressMouseButton(mouseLT_A, down: aPressed)
-            if aPressed { print("LT+A -> Mouse 23") }
-        } else {
-            pressKey(36, down: aPressed)  // Return
-            if aPressed { print("A -> Return") }
-        }
-    }
+    // --- Buttons (all dispatch through handleButton) ---
+    handleButton("a",          pressed: gamepad.buttonA.isPressed,                    ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("b",          pressed: gamepad.buttonB.isPressed,                    ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("x",          pressed: gamepad.buttonX.isPressed,                    ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("y",          pressed: gamepad.buttonY.isPressed,                    ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("rb",         pressed: gamepad.rightShoulder.isPressed,              ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("rt",         pressed: gamepad.rightTrigger.value > 0.5,             ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("back",       pressed: gamepad.buttonOptions?.isPressed ?? false,    ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("menu",       pressed: gamepad.buttonMenu.isPressed,                 ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("l3",         pressed: gamepad.leftThumbstickButton?.isPressed ?? false,  ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("r3",         pressed: gamepad.rightThumbstickButton?.isPressed ?? false, ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("dpad_up",    pressed: gamepad.dpad.up.isPressed,                    ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("dpad_down",  pressed: gamepad.dpad.down.isPressed,                  ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("dpad_left",  pressed: gamepad.dpad.left.isPressed,                  ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("dpad_right", pressed: gamepad.dpad.right.isPressed,                 ltHeld: ltHeld, lbHeld: lbHeld)
 
-    let bPressed = gamepad.buttonB.isPressed
-    if buttonStates["b"] != bPressed {
-        buttonStates["b"] = bPressed
-        if lbHeld {
-            pressKey(13, down: bPressed, modifiers: .maskCommand)  // Cmd+W (close tab)
-            if bPressed { print("LB+B -> Cmd+W") }
-        } else if ltHeld {
-            pressMouseButton(mouseLT_B, down: bPressed)
-            if bPressed { print("LT+B -> Mouse 24") }
-        } else {
-            pressKey(53, down: bPressed)  // Escape
-            if bPressed { print("B -> Escape") }
-        }
-    }
-
-    let xPressed = gamepad.buttonX.isPressed
-    if xButtonState != xPressed {
-        xButtonState = xPressed
-        if lbHeld {
-            pressMouseButton(mouseLB_X, down: xPressed)
-            if xPressed { print("LB+X -> Mouse 30") }
-        } else if ltHeld {
-            pressMouseButton(mouseLT_X, down: xPressed)
-            if xPressed { print("LT+X -> Mouse 25") }
-        } else {
-            pressKey(51, down: xPressed)  // Backspace
-            if xPressed { print("X -> Backspace") }
-        }
-    }
-
-    let yPressed = gamepad.buttonY.isPressed
-    if yButtonState != yPressed {
-        yButtonState = yPressed
-        if lbHeld {
-            pressKey(17, down: yPressed, modifiers: .maskCommand)  // Cmd+T (new tab)
-            if yPressed { print("LB+Y -> Cmd+T") }
-        } else if ltHeld {
-            pressKey(48, down: yPressed, modifiers: .maskShift)  // Shift+Tab
-            if yPressed { print("LT+Y -> Shift+Tab") }
-        } else {
-            pressKey(17, down: yPressed, modifiers: .maskAlternate)  // Option+T
-            if yPressed { print("Y -> Option+T") }
-        }
-    }
-
-    // Shoulders
-    buttonStates["leftShoulder"] = lbHeld  // LB is a modifier, just track state
-
-    let rbPressed = gamepad.rightShoulder.isPressed
-    if buttonStates["rightShoulder"] != rbPressed {
-        buttonStates["rightShoulder"] = rbPressed
-        if lbHeld {
-            pressMouseButton(mouseLB_RB, down: rbPressed)
-            if rbPressed { print("LB+RB -> Mouse 34") }
-        } else if ltHeld {
-            pressMouseButton(mouseLT_RB, down: rbPressed)
-            if rbPressed { print("LT+RB -> Mouse 27") }
-        } else {
-            pressMouseButton(mouseRB, down: rbPressed)
-            if rbPressed { print("RB -> Mouse 22") }
-        }
-    }
-
-    // Triggers (threshold at 0.5)
-    buttonStates["leftTrigger"] = ltHeld  // LT is a modifier, just track state
-
-    let rtPressed = gamepad.rightTrigger.value > 0.5
-    if buttonStates["rightTrigger"] != rtPressed {
-        buttonStates["rightTrigger"] = rtPressed
-        if lbHeld {
-            pressMouseButton(mouseLB_RT, down: rtPressed)
-            if rtPressed { print("LB+RT -> Mouse 35") }
-        } else if ltHeld {
-            pressMouseButton(mouseLT_RT, down: rtPressed)
-            if rtPressed { print("LT+RT -> Mouse 28") }
-        } else {
-            pressMouseButton(mouseRT, down: rtPressed)
-            if rtPressed { print("RT -> Mouse 21") }
-        }
-    }
-    
-    // D-pad -> Arrow keys (or tab/terminal switching when LT held)
-    let dpad = gamepad.dpad
-    handleDpadState(
-        up: dpad.up.isPressed,
-        down: dpad.down.isPressed,
-        left: dpad.left.isPressed,
-        right: dpad.right.isPressed,
-        ltHeld: ltHeld,
-        lbHeld: lbHeld
-    )
-    
-    // Left stick -> Mouse movement with light momentum
+    // --- Left stick: mouse movement with momentum ---
     let mouseX = gamepad.leftThumbstick.xAxis.value
     let mouseY = gamepad.leftThumbstick.yAxis.value
     let mouseDeadzone: Float = 0.10
     let mouseSpeed: Double = 20.0
-    let mouseAccel: Double = 0.35    // faster response than scroll
-    let mouseDecay: Double = 0.7     // quick falloff
+    let mouseAccel: Double = 0.35
+    let mouseDecay: Double = 0.7
 
     if abs(mouseX) > mouseDeadzone || abs(mouseY) > mouseDeadzone {
         let curvedX = (mouseX > 0 ? 1.0 : -1.0) * pow(Double(abs(mouseX)), 1.5) * mouseSpeed
         let curvedY = (mouseY > 0 ? 1.0 : -1.0) * pow(Double(abs(mouseY)), 1.5) * mouseSpeed
         mouseVelocityX += (curvedX - mouseVelocityX) * mouseAccel
-        mouseVelocityY += (-curvedY - mouseVelocityY) * mouseAccel  // Invert Y
+        mouseVelocityY += (-curvedY - mouseVelocityY) * mouseAccel
     } else {
         mouseVelocityX *= mouseDecay
         mouseVelocityY *= mouseDecay
@@ -399,34 +347,24 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     if abs(mouseVelocityX) > 0.3 || abs(mouseVelocityY) > 0.3 {
         moveMouse(dx: mouseVelocityX, dy: mouseVelocityY)
     }
-    
-    // L3 (left stick click) -> Mouse click
-    mouseClick(down: gamepad.leftThumbstickButton?.isPressed ?? false)
-    // R3 (right stick click) -> Right click
-    rightClick(down: gamepad.rightThumbstickButton?.isPressed ?? false)
-    
-    // Right stick -> Smooth scrolling with momentum
+
+    // --- Right stick: scrolling with momentum ---
     let scrollX = gamepad.rightThumbstick.xAxis.value
     let scrollY = gamepad.rightThumbstick.yAxis.value
     let deadzone: Float = 0.02
     let scrollSpeed: Float = 30.0
-    let accel: Float = 0.15      // build-up rate
+    let accel: Float = 0.15
 
     if abs(scrollX) > deadzone || abs(scrollY) > deadzone {
-        // Apply steeper curve - more difference between min and max
         let curvedX = (scrollX > 0 ? 1.0 : -1.0) * pow(abs(scrollX), 5.5) * scrollSpeed
         let curvedY = (scrollY > 0 ? 1.0 : -1.0) * pow(abs(scrollY), 5.5) * scrollSpeed
-        // Accelerate toward target velocity
         scrollVelocityX += (curvedX - scrollVelocityX) * accel
         scrollVelocityY += (curvedY - scrollVelocityY) * accel
     } else {
-        // Hybrid decay: multiplicative + flat subtraction
-        // Flat part makes high velocity stop sooner (relatively)
         let decay: Float = 0.92
         let flat: Float = 1.0
         scrollVelocityX *= decay
         scrollVelocityY *= decay
-        // Subtract flat amount toward zero
         if scrollVelocityX > flat { scrollVelocityX -= flat }
         else if scrollVelocityX < -flat { scrollVelocityX += flat }
         else { scrollVelocityX = 0 }
@@ -435,73 +373,94 @@ func pollController(_ gamepad: GCExtendedGamepad) {
         else { scrollVelocityY = 0 }
     }
 
-    // Scroll if velocity above threshold
     if abs(scrollVelocityX) > 0.5 || abs(scrollVelocityY) > 0.5 {
         scroll(dx: -Int32(scrollVelocityX), dy: Int32(scrollVelocityY))
     }
-    
-    // Back/View button -> Ctrl+O (or Ctrl+E when LT held, or Ctrl+B when LB held)
-    let optionsPressed = gamepad.buttonOptions?.isPressed ?? false
-    if optionsButtonState != optionsPressed {
-        optionsButtonState = optionsPressed
-        if lbHeld {
-            pressKey(11, down: optionsPressed, modifiers: .maskControl)  // Ctrl+B
-            if optionsPressed { print("LB+Back -> Ctrl+B") }
-        } else if ltHeld {
-            pressKey(14, down: optionsPressed, modifiers: .maskControl)  // Ctrl+E
-            if optionsPressed { print("LT+Back -> Ctrl+E") }
+}
+
+// MARK: - Menu Bar
+
+class AppActions: NSObject {
+    let statusItem: NSStatusItem
+    let statusMenuItem: NSMenuItem
+
+    override init() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusMenuItem = NSMenuItem(title: "No controller", action: nil, keyEquivalent: "")
+        super.init()
+
+        statusItem.button?.title = "\u{1F3AE}"  // gamepad emoji
+
+        let menu = NSMenu()
+        statusMenuItem.isEnabled = false
+        menu.addItem(statusMenuItem)
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Edit Bindings...", action: #selector(editBindings), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "r"))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
+
+        for item in menu.items where item.action != nil {
+            item.target = self
+        }
+        statusItem.menu = menu
+    }
+
+    func updateStatus(controllers: [GCController]) {
+        if let c = controllers.first {
+            statusMenuItem.title = "\(c.vendorName ?? "Controller") connected"
         } else {
-            pressKey(31, down: optionsPressed, modifiers: .maskControl)  // Ctrl+O
-            if optionsPressed { print("Back -> Ctrl+O") }
+            statusMenuItem.title = "No controller"
         }
     }
 
-    // Menu button -> / (or mouse button with modifiers)
-    let menuPressed = gamepad.buttonMenu.isPressed
-    if menuButtonState != menuPressed {
-        menuButtonState = menuPressed
-        if lbHeld {
-            pressMouseButton(mouseLB_Menu, down: menuPressed)
-            if menuPressed { print("LB+Menu -> Mouse 33") }
-        } else if ltHeld {
-            pressMouseButton(mouseLT_Menu, down: menuPressed)
-            if menuPressed { print("LT+Menu -> Mouse 26") }
-        } else {
-            pressKey(44, down: menuPressed)  // /
-            if menuPressed { print("Menu -> /") }
-        }
+    @objc func editBindings() {
+        let configPath = NSString("~/.config/codecontroller.json").expandingTildeInPath
+        NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
+    }
+
+    @objc func reloadConfig() {
+        bindings = loadBindings()
+        print("Config reloaded (\(bindings.count) bindings)")
+    }
+
+    @objc func quit() {
+        NSApplication.shared.terminate(nil)
     }
 }
 
 // MARK: - Main
+
 freopen("/tmp/codecontroller.log", "a", stdout)
 freopen("/tmp/codecontroller.log", "a", stderr)
 setbuf(stdout, nil)
-print("CodeController (polling mode)")
-print("Press Ctrl+C to quit\n")
+print("CodeController started")
+
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
+let appActions = AppActions()
 
 GCController.startWirelessControllerDiscovery {}
 
 var lastControllerCount = 0
 var noControllerTicks = 0
 
-// Poll at 60Hz
 Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { _ in
     let controllers = GCController.controllers()
-    
+
     if controllers.count != lastControllerCount {
         lastControllerCount = controllers.count
         noControllerTicks = 0
+        appActions.updateStatus(controllers: controllers)
         print("Controllers: \(controllers.count)")
         for c in controllers {
             print("  - \(c.vendorName ?? "Unknown") (\(c.productCategory))")
         }
     }
-    
-    // Auto-reconnect: if no controllers for 5 seconds, retry discovery
+
     if controllers.isEmpty {
         noControllerTicks += 1
-        if noControllerTicks == 300 {  // 5 seconds at 60Hz
+        if noControllerTicks == 300 {
             print("No controllers - retrying discovery...")
             GCController.startWirelessControllerDiscovery {}
             noControllerTicks = 0
@@ -509,7 +468,7 @@ Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { _ in
     } else {
         noControllerTicks = 0
     }
-    
+
     for controller in controllers {
         if let gamepad = controller.extendedGamepad {
             pollController(gamepad)
@@ -517,4 +476,4 @@ Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { _ in
     }
 }
 
-RunLoop.main.run()
+app.run()
