@@ -109,7 +109,7 @@ Prefix with `lt+` or `lb+` for modifier layers (e.g., `lt+a`, `lb+dpad_left`).
 
 ## Claude Code Setup
 
-The default bindings map Y to Tab, which toggles extended thinking in Claude Code. By default, Claude Code uses Tab for autocomplete. To rebind Tab to thinking toggle, add this to `~/.claude/keybindings.json`:
+The default bindings map Y to Tab. Claude Code changed Tab from extended thinking toggle to autocomplete (a controversial change). To restore Tab as the thinking toggle, add this to `~/.claude/keybindings.json`:
 
 ```json
 {

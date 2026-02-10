@@ -5,7 +5,10 @@ swiftc CodeController.swift -o CodeController
 
 # Create .app bundle structure
 mkdir -p CodeController.app/Contents/MacOS
+mkdir -p CodeController.app/Contents/Resources
 mv CodeController CodeController.app/Contents/MacOS/
+cp icon.png CodeController.app/Contents/Resources/
+cp README.md CodeController.app/Contents/Resources/
 
 # Create Info.plist
 cat > CodeController.app/Contents/Info.plist << 'EOF'

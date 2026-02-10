@@ -15,46 +15,46 @@ struct Binding: Codable {
 
 let defaultConfigJSON = """
 {
-  "a":              { "type": "key",          "key": "return" },
-  "b":              { "type": "key",          "key": "escape" },
-  "x":              { "type": "key",          "key": "backspace" },
-  "y":              { "type": "key",          "key": "tab" },
-  "rb":             { "type": "mouse",        "button": 22 },
-  "rt":             { "type": "mouse",        "button": 21 },
-  "back":           { "type": "key",          "key": "o",        "modifiers": ["control"] },
-  "menu":           { "type": "key",          "key": "/" },
-  "dpad_up":        { "type": "key",          "key": "up" },
-  "dpad_down":      { "type": "key",          "key": "down" },
-  "dpad_left":      { "type": "key",          "key": "left" },
-  "dpad_right":     { "type": "key",          "key": "right" },
-  "l3":             { "type": "leftClick" },
-  "r3":             { "type": "rightClick" },
+  "a":              { "key":    "return",      "type": "key"          },
+  "b":              { "key":    "escape",      "type": "key"          },
+  "x":              { "key":    "backspace",   "type": "key"          },
+  "y":              { "key":    "tab",         "type": "key"          },
+  "rb":             { "button": 22,            "type": "mouse"        },
+  "rt":             { "button": 21,            "type": "mouse"        },
+  "back":           { "key":    "o",           "type": "key",           "modifiers": ["control"] },
+  "menu":           { "key":    "/",           "type": "key"          },
+  "dpad_up":        { "key":    "up",          "type": "key"          },
+  "dpad_down":      { "key":    "down",        "type": "key"          },
+  "dpad_left":      { "key":    "left",        "type": "key"          },
+  "dpad_right":     { "key":    "right",       "type": "key"          },
+  "l3":             {                          "type": "leftClick"    },
+  "r3":             {                          "type": "rightClick"   },
 
-  "lt+a":           { "type": "key",          "key": "space" },
-  "lt+b":           { "type": "mouse",        "button": 24 },
-  "lt+x":           { "type": "mouse",        "button": 25 },
-  "lt+y":           { "type": "key",          "key": "tab",      "modifiers": ["shift"] },
-  "lt+rb":          { "type": "mouse",        "button": 27 },
-  "lt+rt":          { "type": "mouse",        "button": 28 },
-  "lt+back":        { "type": "key",          "key": "e",        "modifiers": ["control"] },
-  "lt+menu":        { "type": "mouse",        "button": 26 },
-  "lt+dpad_up":     { "type": "cycleWindows" },
-  "lt+dpad_down":   { "type": "cycleWindows" },
-  "lt+dpad_left":   { "type": "tap",          "key": "[",        "modifiers": ["command", "shift"] },
-  "lt+dpad_right":  { "type": "tap",          "key": "]",        "modifiers": ["command", "shift"] },
+  "lt+a":           { "key":    "space",       "type": "key"          },
+  "lt+b":           { "button": 24,            "type": "mouse"        },
+  "lt+x":           { "button": 25,            "type": "mouse"        },
+  "lt+y":           { "key":    "tab",         "type": "key",           "modifiers": ["shift"] },
+  "lt+rb":          { "button": 27,            "type": "mouse"        },
+  "lt+rt":          { "button": 28,            "type": "mouse"        },
+  "lt+back":        { "key":    "e",           "type": "key",           "modifiers": ["control"] },
+  "lt+menu":        { "button": 26,            "type": "mouse"        },
+  "lt+dpad_up":     {                          "type": "cycleWindows" },
+  "lt+dpad_down":   {                          "type": "cycleWindows" },
+  "lt+dpad_left":   { "key":    "[",           "type": "tap",           "modifiers": ["command", "shift"] },
+  "lt+dpad_right":  { "key":    "]",           "type": "tap",           "modifiers": ["command", "shift"] },
 
-  "lb+a":           { "type": "mouse",        "button": 29 },
-  "lb+b":           { "type": "key",          "key": "w",        "modifiers": ["command"] },
-  "lb+x":           { "type": "mouse",        "button": 30 },
-  "lb+y":           { "type": "key",          "key": "t",        "modifiers": ["command"] },
-  "lb+rb":          { "type": "mouse",        "button": 34 },
-  "lb+rt":          { "type": "mouse",        "button": 35 },
-  "lb+back":        { "type": "key",          "key": "b",        "modifiers": ["control"] },
-  "lb+menu":        { "type": "mouse",        "button": 33 },
-  "lb+dpad_up":     { "type": "mouse",        "button": 31 },
-  "lb+dpad_down":   { "type": "mouse",        "button": 32 },
-  "lb+dpad_left":   { "type": "tap",          "key": "left",     "modifiers": ["control"] },
-  "lb+dpad_right":  { "type": "tap",          "key": "right",    "modifiers": ["control"] }
+  "lb+a":           { "button": 29,            "type": "mouse"        },
+  "lb+b":           { "key":    "w",           "type": "key",           "modifiers": ["command"] },
+  "lb+x":           { "button": 30,            "type": "mouse"        },
+  "lb+y":           { "key":    "t",           "type": "key",           "modifiers": ["command"] },
+  "lb+rb":          { "button": 34,            "type": "mouse"        },
+  "lb+rt":          { "button": 35,            "type": "mouse"        },
+  "lb+back":        { "key":    "b",           "type": "key",           "modifiers": ["control"] },
+  "lb+menu":        { "button": 33,            "type": "mouse"        },
+  "lb+dpad_up":     { "button": 31,            "type": "mouse"        },
+  "lb+dpad_down":   { "button": 32,            "type": "mouse"        },
+  "lb+dpad_left":   { "key":    "left",        "type": "tap",           "modifiers": ["control"] },
+  "lb+dpad_right":  { "key":    "right",       "type": "tap",           "modifiers": ["control"] }
 }
 """
 
@@ -389,7 +389,14 @@ class AppActions: NSObject {
         statusMenuItem = NSMenuItem(title: "No controller", action: nil, keyEquivalent: "")
         super.init()
 
-        statusItem.button?.title = "\u{1F3AE}"  // gamepad emoji
+        if let iconPath = Bundle.main.path(forResource: "icon", ofType: "png"),
+           let icon = NSImage(contentsOfFile: iconPath) {
+            icon.isTemplate = true
+            icon.size = NSSize(width: 18, height: 18)
+            statusItem.button?.image = icon
+        } else {
+            statusItem.button?.title = "\u{1F3AE}"
+        }
 
         let menu = NSMenu()
         statusMenuItem.isEnabled = false
@@ -397,6 +404,7 @@ class AppActions: NSObject {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Edit Bindings...", action: #selector(editBindings), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "r"))
+        menu.addItem(NSMenuItem(title: "Show README", action: #selector(showReadme), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
 
@@ -412,6 +420,75 @@ class AppActions: NSObject {
         } else {
             statusMenuItem.title = "No controller"
         }
+    }
+
+    @objc func showReadme() {
+        guard let readmePath = Bundle.main.path(forResource: "README", ofType: "md"),
+              let md = try? String(contentsOfFile: readmePath, encoding: .utf8) else { return }
+        // Basic markdown -> HTML (tables, headers, code blocks, bold, backticks)
+        var html = md
+        // Code blocks
+        html = html.replacingOccurrences(of: "```json\n", with: "<pre><code>")
+        html = html.replacingOccurrences(of: "```bash\n", with: "<pre><code>")
+        html = html.replacingOccurrences(of: "```\n", with: "</code></pre>\n")
+        html = html.replacingOccurrences(of: "```", with: "</code></pre>")
+        // Headers
+        for level in (1...4).reversed() {
+            let prefix = String(repeating: "#", count: level)
+            html = html.replacingOccurrences(of: "\n\(prefix) ", with: "\n<h\(level)>")
+            // Close headers at end of line
+            let lines = html.components(separatedBy: "\n")
+            html = lines.map { line in
+                for l in (1...4).reversed() {
+                    if line.hasPrefix("<h\(l)>") && !line.contains("</h\(l)>") {
+                        return line + "</h\(l)>"
+                    }
+                }
+                return line
+            }.joined(separator: "\n")
+        }
+        // Tables
+        let lines = html.components(separatedBy: "\n")
+        var result: [String] = []
+        var inTable = false
+        for line in lines {
+            if line.hasPrefix("|") && line.hasSuffix("|") {
+                if line.contains("---") { continue }  // separator row
+                let cells = line.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+                if !inTable { result.append("<table border='1' cellpadding='6' cellspacing='0' style='border-collapse:collapse'>"); inTable = true }
+                let tag = result.filter({ $0.contains("<tr>") }).isEmpty ? "th" : "td"
+                result.append("<tr>" + cells.map { "<\(tag)>\($0)</\(tag)>" }.joined() + "</tr>")
+            } else {
+                if inTable { result.append("</table>"); inTable = false }
+                result.append(line)
+            }
+        }
+        if inTable { result.append("</table>") }
+        html = result.joined(separator: "\n")
+        // Inline: bold, code
+        while let r = html.range(of: "\\*\\*(.+?)\\*\\*", options: .regularExpression) {
+            let match = String(html[r])
+            html = html.replacingCharacters(in: r, with: "<b>" + match.dropFirst(2).dropLast(2) + "</b>")
+        }
+        while let r = html.range(of: "`([^`]+)`", options: .regularExpression) {
+            let match = String(html[r])
+            html = html.replacingCharacters(in: r, with: "<code>" + match.dropFirst(1).dropLast(1) + "</code>")
+        }
+        // Line breaks for remaining plain lines
+        html = html.replacingOccurrences(of: "\n\n", with: "<br><br>")
+        let page = """
+        <html><head><style>
+        body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; }
+        table { margin: 10px 0; } th { background: #f0f0f0; text-align: left; }
+        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
+        pre code { display: block; padding: 12px; background: #f4f4f4; border-radius: 6px; overflow-x: auto; }
+        h1 { border-bottom: 2px solid #ddd; padding-bottom: 8px; }
+        h2 { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-top: 30px; }
+        </style></head><body>\(html)</body></html>
+        """
+        let tmpPath = NSTemporaryDirectory() + "codecontroller_readme.html"
+        try? page.write(toFile: tmpPath, atomically: true, encoding: .utf8)
+        NSWorkspace.shared.open(URL(fileURLWithPath: tmpPath))
     }
 
     @objc func editBindings() {
