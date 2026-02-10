@@ -10,33 +10,26 @@ import CoreGraphics
 // BTT can trigger on these
 // Order: Face, Sticks, Back/Menu, Bumpers, Triggers
 
-// Normal mode (10-21)
-// let mouseA: CGMouseButton = CGMouseButton(rawValue: 10)!
-// let mouseB: CGMouseButton = CGMouseButton(rawValue: 11)!
-// let mouseX: CGMouseButton = CGMouseButton(rawValue: 12)!
-// let mouseY: CGMouseButton = CGMouseButton(rawValue: 13)!
-// let mouseL3: CGMouseButton = CGMouseButton(rawValue: 14)!
-// let mouseR3: CGMouseButton = CGMouseButton(rawValue: 15)!
-let mouseBack: CGMouseButton = CGMouseButton(rawValue: 16)!
-let mouseMenu: CGMouseButton = CGMouseButton(rawValue: 17)!
-// let mouseLB: CGMouseButton = CGMouseButton(rawValue: 18)!  // modifier
-let mouseRB: CGMouseButton = CGMouseButton(rawValue: 19)!
-// let mouseLT: CGMouseButton = CGMouseButton(rawValue: 20)!  // modifier
+// Normal (21-22)
 let mouseRT: CGMouseButton = CGMouseButton(rawValue: 21)!
+let mouseRB: CGMouseButton = CGMouseButton(rawValue: 22)!
 
-// LT + button (shifted mode, 22-33)
-let mouseLT_A: CGMouseButton = CGMouseButton(rawValue: 22)!
-let mouseLT_B: CGMouseButton = CGMouseButton(rawValue: 23)!
-let mouseLT_X: CGMouseButton = CGMouseButton(rawValue: 24)!
-let mouseLT_Y: CGMouseButton = CGMouseButton(rawValue: 25)!
-// let mouseLT_L3: CGMouseButton = CGMouseButton(rawValue: 26)!
-// let mouseLT_R3: CGMouseButton = CGMouseButton(rawValue: 27)!
-// let mouseLT_Back: CGMouseButton = CGMouseButton(rawValue: 28)!
-// let mouseLT_Menu: CGMouseButton = CGMouseButton(rawValue: 29)!
-// let mouseLT_LB: CGMouseButton = CGMouseButton(rawValue: 30)!
-// let mouseLT_RB: CGMouseButton = CGMouseButton(rawValue: 31)!
-// let mouseLT_LT: CGMouseButton = CGMouseButton(rawValue: 32)!
-// let mouseLT_RT: CGMouseButton = CGMouseButton(rawValue: 33)!
+// LT + button (23-28)
+let mouseLT_A: CGMouseButton = CGMouseButton(rawValue: 23)!
+let mouseLT_B: CGMouseButton = CGMouseButton(rawValue: 24)!
+let mouseLT_X: CGMouseButton = CGMouseButton(rawValue: 25)!
+let mouseLT_Menu: CGMouseButton = CGMouseButton(rawValue: 26)!
+let mouseLT_RB: CGMouseButton = CGMouseButton(rawValue: 27)!
+let mouseLT_RT: CGMouseButton = CGMouseButton(rawValue: 28)!
+
+// LB + button (29-35)
+let mouseLB_A: CGMouseButton = CGMouseButton(rawValue: 29)!
+let mouseLB_X: CGMouseButton = CGMouseButton(rawValue: 30)!
+let mouseLB_Up: CGMouseButton = CGMouseButton(rawValue: 31)!
+let mouseLB_Down: CGMouseButton = CGMouseButton(rawValue: 32)!
+let mouseLB_Menu: CGMouseButton = CGMouseButton(rawValue: 33)!
+let mouseLB_RB: CGMouseButton = CGMouseButton(rawValue: 34)!
+let mouseLB_RT: CGMouseButton = CGMouseButton(rawValue: 35)!
 
 // Helper to send mouse button events
 func pressMouseButton(_ button: CGMouseButton, down: Bool) {
@@ -140,6 +133,20 @@ func mouseClick(down: Bool) {
     }
 }
 
+var rightMouseDown = false
+func rightClick(down: Bool) {
+    guard rightMouseDown != down else { return }
+    rightMouseDown = down
+
+    let location = CGEvent(source: nil)?.location ?? .zero
+    let eventType: CGEventType = down ? .rightMouseDown : .rightMouseUp
+
+    if let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: .right) {
+        event.post(tap: .cgSessionEventTap)
+        print("Right Mouse \(down ? "DOWN" : "UP")")
+    }
+}
+
 // Track last scroll values for smoothing
 var lastScrollX: Float = 0
 var lastScrollY: Float = 0
@@ -173,7 +180,11 @@ func cycleWindows() {
 func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool, lbHeld: Bool) {
     if dpadStates["up"] != up {
         dpadStates["up"] = up
-        if ltHeld && up {
+        if lbHeld && up {
+            pressMouseButton(mouseLB_Up, down: true)
+            pressMouseButton(mouseLB_Up, down: false)
+            print("LB+D-pad UP -> Mouse 31")
+        } else if ltHeld && up {
             cycleWindows()
             print("LT+D-pad UP -> Cycle window")
         } else {
@@ -183,7 +194,11 @@ func handleDpadState(up: Bool, down: Bool, left: Bool, right: Bool, ltHeld: Bool
     }
     if dpadStates["down"] != down {
         dpadStates["down"] = down
-        if ltHeld && down {
+        if lbHeld && down {
+            pressMouseButton(mouseLB_Down, down: true)
+            pressMouseButton(mouseLB_Down, down: false)
+            print("LB+D-pad DOWN -> Mouse 32")
+        } else if ltHeld && down {
             cycleWindows()
             print("LT+D-pad DOWN -> Cycle window")
         } else {
@@ -259,9 +274,12 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let aPressed = gamepad.buttonA.isPressed
     if buttonStates["a"] != aPressed {
         buttonStates["a"] = aPressed
-        if ltHeld {
+        if lbHeld {
+            pressMouseButton(mouseLB_A, down: aPressed)
+            if aPressed { print("LB+A -> Mouse 29") }
+        } else if ltHeld {
             pressMouseButton(mouseLT_A, down: aPressed)
-            if aPressed { print("LT+A -> Mouse 22") }
+            if aPressed { print("LT+A -> Mouse 23") }
         } else {
             pressKey(36, down: aPressed)  // Return
             if aPressed { print("A -> Return") }
@@ -271,9 +289,12 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let bPressed = gamepad.buttonB.isPressed
     if buttonStates["b"] != bPressed {
         buttonStates["b"] = bPressed
-        if ltHeld {
+        if lbHeld {
+            pressKey(13, down: bPressed, modifiers: .maskCommand)  // Cmd+W (close tab)
+            if bPressed { print("LB+B -> Cmd+W") }
+        } else if ltHeld {
             pressMouseButton(mouseLT_B, down: bPressed)
-            if bPressed { print("LT+B -> Mouse 23") }
+            if bPressed { print("LT+B -> Mouse 24") }
         } else {
             pressKey(53, down: bPressed)  // Escape
             if bPressed { print("B -> Escape") }
@@ -283,9 +304,12 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let xPressed = gamepad.buttonX.isPressed
     if xButtonState != xPressed {
         xButtonState = xPressed
-        if ltHeld {
+        if lbHeld {
+            pressMouseButton(mouseLB_X, down: xPressed)
+            if xPressed { print("LB+X -> Mouse 30") }
+        } else if ltHeld {
             pressMouseButton(mouseLT_X, down: xPressed)
-            if xPressed { print("LT+X -> Mouse 24") }
+            if xPressed { print("LT+X -> Mouse 25") }
         } else {
             pressKey(51, down: xPressed)  // Backspace
             if xPressed { print("X -> Backspace") }
@@ -295,7 +319,10 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let yPressed = gamepad.buttonY.isPressed
     if yButtonState != yPressed {
         yButtonState = yPressed
-        if ltHeld {
+        if lbHeld {
+            pressKey(17, down: yPressed, modifiers: .maskCommand)  // Cmd+T (new tab)
+            if yPressed { print("LB+Y -> Cmd+T") }
+        } else if ltHeld {
             pressKey(48, down: yPressed, modifiers: .maskShift)  // Shift+Tab
             if yPressed { print("LT+Y -> Shift+Tab") }
         } else {
@@ -310,8 +337,16 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let rbPressed = gamepad.rightShoulder.isPressed
     if buttonStates["rightShoulder"] != rbPressed {
         buttonStates["rightShoulder"] = rbPressed
-        pressKey(96, down: rbPressed, modifiers: .maskAlternate)  // Option+F5
-        if rbPressed { print("RB -> Option+F5") }
+        if lbHeld {
+            pressMouseButton(mouseLB_RB, down: rbPressed)
+            if rbPressed { print("LB+RB -> Mouse 34") }
+        } else if ltHeld {
+            pressMouseButton(mouseLT_RB, down: rbPressed)
+            if rbPressed { print("LT+RB -> Mouse 27") }
+        } else {
+            pressMouseButton(mouseRB, down: rbPressed)
+            if rbPressed { print("RB -> Mouse 22") }
+        }
     }
 
     // Triggers (threshold at 0.5)
@@ -320,8 +355,16 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     let rtPressed = gamepad.rightTrigger.value > 0.5
     if buttonStates["rightTrigger"] != rtPressed {
         buttonStates["rightTrigger"] = rtPressed
-        pressMouseButton(mouseRT, down: rtPressed)
-        if rtPressed { print("RT -> Mouse 21") }
+        if lbHeld {
+            pressMouseButton(mouseLB_RT, down: rtPressed)
+            if rtPressed { print("LB+RT -> Mouse 35") }
+        } else if ltHeld {
+            pressMouseButton(mouseLT_RT, down: rtPressed)
+            if rtPressed { print("LT+RT -> Mouse 28") }
+        } else {
+            pressMouseButton(mouseRT, down: rtPressed)
+            if rtPressed { print("RT -> Mouse 21") }
+        }
     }
     
     // D-pad -> Arrow keys (or tab/terminal switching when LT held)
@@ -359,6 +402,8 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     
     // L3 (left stick click) -> Mouse click
     mouseClick(down: gamepad.leftThumbstickButton?.isPressed ?? false)
+    // R3 (right stick click) -> Right click
+    rightClick(down: gamepad.rightThumbstickButton?.isPressed ?? false)
     
     // Right stick -> Smooth scrolling with momentum
     let scrollX = gamepad.rightThumbstick.xAxis.value
@@ -392,7 +437,7 @@ func pollController(_ gamepad: GCExtendedGamepad) {
 
     // Scroll if velocity above threshold
     if abs(scrollVelocityX) > 0.5 || abs(scrollVelocityY) > 0.5 {
-        scroll(dx: Int32(scrollVelocityX), dy: Int32(scrollVelocityY))
+        scroll(dx: -Int32(scrollVelocityX), dy: Int32(scrollVelocityY))
     }
     
     // Back/View button -> Ctrl+O (or Ctrl+E when LT held, or Ctrl+B when LB held)
@@ -411,12 +456,20 @@ func pollController(_ gamepad: GCExtendedGamepad) {
         }
     }
 
-    // Menu button -> /
+    // Menu button -> / (or mouse button with modifiers)
     let menuPressed = gamepad.buttonMenu.isPressed
     if menuButtonState != menuPressed {
         menuButtonState = menuPressed
-        pressKey(44, down: menuPressed)  // /
-        if menuPressed { print("Menu -> /") }
+        if lbHeld {
+            pressMouseButton(mouseLB_Menu, down: menuPressed)
+            if menuPressed { print("LB+Menu -> Mouse 33") }
+        } else if ltHeld {
+            pressMouseButton(mouseLT_Menu, down: menuPressed)
+            if menuPressed { print("LT+Menu -> Mouse 26") }
+        } else {
+            pressKey(44, down: menuPressed)  // /
+            if menuPressed { print("Menu -> /") }
+        }
     }
 }
 
