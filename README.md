@@ -58,7 +58,6 @@ Slots marked "Mouse N" emit virtual mouse button N. These do nothing by default 
 
 | Mouse | Trigger | Mouse | Trigger |
 |-------|---------|-------|---------|
-| Mouse | Trigger | Mouse | Trigger |
 | 21 | RT | 29 | LB+A |
 | 22 | RB | 30 | LB+X |
 | 24 | LT+B | 31 | LB+D-pad Up |

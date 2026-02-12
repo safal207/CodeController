@@ -477,7 +477,7 @@ class AppActions: NSObject {
         // Line breaks for remaining plain lines
         html = html.replacingOccurrences(of: "\n\n", with: "<br><br>")
         let page = """
-        <html><head><style>
+        <html><head><meta charset="utf-8"><style>
         body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; }
         table { margin: 10px 0; } th { background: #f0f0f0; text-align: left; }
         code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
@@ -513,10 +513,18 @@ freopen("/tmp/codecontroller.log", "a", stderr)
 setbuf(stdout, nil)
 print("CodeController started")
 
+let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+if !AXIsProcessTrustedWithOptions(opts) {
+    print("Accessibility permission not granted — prompting user")
+}
+
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 let appActions = AppActions()
 
+NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { _ in
+    GCController.shouldMonitorBackgroundEvents = true
+}
 GCController.startWirelessControllerDiscovery {}
 
 var lastControllerCount = 0
