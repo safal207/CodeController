@@ -13,48 +13,46 @@ struct Binding: Codable {
     var button: Int?          // mouse button number (for "mouse")
 }
 
+struct Settings: Codable {
+    var logging: Bool?
+}
+
+struct Config: Codable {
+    var settings: Settings?
+    var bindings: [String: Binding]
+}
+
 let defaultConfigJSON = """
 {
-  "a":              { "key":    "return",      "type": "key"          },
-  "b":              { "key":    "escape",      "type": "key"          },
-  "x":              { "key":    "backspace",   "type": "key"          },
-  "y":              { "key":    "tab",         "type": "key"          },
-  "rb":             { "button": 22,            "type": "mouse"        },
-  "rt":             { "button": 21,            "type": "mouse"        },
-  "back":           { "key":    "o",           "type": "key",           "modifiers": ["control"] },
-  "menu":           { "key":    "/",           "type": "key"          },
-  "dpad_up":        { "key":    "up",          "type": "key"          },
-  "dpad_down":      { "key":    "down",        "type": "key"          },
-  "dpad_left":      { "key":    "left",        "type": "key"          },
-  "dpad_right":     { "key":    "right",       "type": "key"          },
-  "l3":             {                          "type": "leftClick"    },
-  "r3":             {                          "type": "rightClick"   },
+  "settings": {
+    "logging": true
+  },
+  "bindings": {
+    "a":              { "key":    "return",      "type": "key"          },
+    "b":              { "key":    "escape",      "type": "key"          },
+    "x":              { "key":    "backspace",   "type": "key"          },
+    "y":              { "key":    "tab",         "type": "key"          },
+    "back":           { "key":    "o",           "type": "key",           "modifiers": ["control"] },
+    "menu":           { "key":    "/",           "type": "key"          },
+    "dpad_up":        { "key":    "up",          "type": "key"          },
+    "dpad_down":      { "key":    "down",        "type": "key"          },
+    "dpad_left":      { "key":    "left",        "type": "key"          },
+    "dpad_right":     { "key":    "right",       "type": "key"          },
+    "ls":             {                          "type": "leftClick"    },
+    "rs":             {                          "type": "rightClick"   },
 
-  "lt+a":           { "key":    "space",       "type": "key"          },
-  "lt+b":           { "button": 24,            "type": "mouse"        },
-  "lt+x":           { "button": 25,            "type": "mouse"        },
-  "lt+y":           { "key":    "tab",         "type": "key",           "modifiers": ["shift"] },
-  "lt+rb":          { "button": 27,            "type": "mouse"        },
-  "lt+rt":          { "button": 28,            "type": "mouse"        },
-  "lt+back":        { "key":    "e",           "type": "key",           "modifiers": ["control"] },
-  "lt+menu":        { "button": 26,            "type": "mouse"        },
-  "lt+dpad_up":     {                          "type": "cycleWindows" },
-  "lt+dpad_down":   {                          "type": "cycleWindows" },
-  "lt+dpad_left":   { "key":    "[",           "type": "tap",           "modifiers": ["command", "shift"] },
-  "lt+dpad_right":  { "key":    "]",           "type": "tap",           "modifiers": ["command", "shift"] },
+    "lt+a":           { "key":    "space",       "type": "key"          },
+    "lt+y":           { "key":    "tab",         "type": "key",           "modifiers": ["shift"] },
+    "lt+back":        { "key":    "e",           "type": "key",           "modifiers": ["control"] },
+    "lt+dpad_up":     {                          "type": "cycleWindows" },
+    "lt+dpad_down":   {                          "type": "cycleWindows" },
+    "lt+dpad_left":   { "key":    "[",           "type": "tap",           "modifiers": ["command", "shift"] },
+    "lt+dpad_right":  { "key":    "]",           "type": "tap",           "modifiers": ["command", "shift"] },
 
-  "lb+a":           { "button": 29,            "type": "mouse"        },
-  "lb+b":           { "key":    "w",           "type": "key",           "modifiers": ["command"] },
-  "lb+x":           { "button": 30,            "type": "mouse"        },
-  "lb+y":           { "key":    "t",           "type": "key",           "modifiers": ["command"] },
-  "lb+rb":          { "button": 34,            "type": "mouse"        },
-  "lb+rt":          { "button": 35,            "type": "mouse"        },
-  "lb+back":        { "key":    "b",           "type": "key",           "modifiers": ["control"] },
-  "lb+menu":        { "button": 33,            "type": "mouse"        },
-  "lb+dpad_up":     { "button": 31,            "type": "mouse"        },
-  "lb+dpad_down":   { "button": 32,            "type": "mouse"        },
-  "lb+dpad_left":   { "key":    "left",        "type": "tap",           "modifiers": ["control"] },
-  "lb+dpad_right":  { "key":    "right",       "type": "tap",           "modifiers": ["control"] }
+    "lb+b":           { "key":    "w",           "type": "key",           "modifiers": ["command"] },
+    "lb+y":           { "key":    "t",           "type": "key",           "modifiers": ["command"] },
+    "lb+back":        { "key":    "b",           "type": "key",           "modifiers": ["control"] }
+  }
 }
 """
 
@@ -114,24 +112,33 @@ func describeBinding(_ b: Binding) -> String {
     }
 }
 
-// Load bindings from config file, or write defaults
-func loadBindings() -> [String: Binding] {
+// Load config from file, or write defaults
+func loadConfig() -> Config {
     let configDir = NSString("~/.config").expandingTildeInPath
     let configPath = "\(configDir)/codecontroller.json"
 
-    // Try loading from file
     if FileManager.default.fileExists(atPath: configPath) {
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: configPath))
-            let config = try JSONDecoder().decode([String: Binding].self, from: data)
-            print("Loaded \(config.count) bindings from \(configPath)")
-            return config
+            // Try new nested format first
+            if var config = try? JSONDecoder().decode(Config.self, from: data) {
+                // Migrate l3/r3 -> ls/rs
+                if let v = config.bindings.removeValue(forKey: "l3") { config.bindings["ls"] = config.bindings["ls"] ?? v }
+                if let v = config.bindings.removeValue(forKey: "r3") { config.bindings["rs"] = config.bindings["rs"] ?? v }
+                print("Loaded \(config.bindings.count) bindings from \(configPath)")
+                return config
+            }
+            // Fall back to old flat format (bindings only, no settings)
+            var flat = try JSONDecoder().decode([String: Binding].self, from: data)
+            if let v = flat.removeValue(forKey: "l3") { flat["ls"] = flat["ls"] ?? v }
+            if let v = flat.removeValue(forKey: "r3") { flat["rs"] = flat["rs"] ?? v }
+            print("Loaded \(flat.count) bindings from \(configPath) (legacy format)")
+            return Config(settings: nil, bindings: flat)
         } catch {
             print("ERROR: Failed to parse \(configPath): \(error)")
             print("Using default bindings")
         }
     } else {
-        // Write default config
         do {
             try FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
             try defaultConfigJSON.write(toFile: configPath, atomically: true, encoding: .utf8)
@@ -141,16 +148,95 @@ func loadBindings() -> [String: Binding] {
         }
     }
 
-    // Parse defaults
-    return try! JSONDecoder().decode([String: Binding].self, from: defaultConfigJSON.data(using: .utf8)!)
+    return try! JSONDecoder().decode(Config.self, from: defaultConfigJSON.data(using: .utf8)!)
 }
 
-var bindings = loadBindings()
+let validBindingTypes = Set(["key", "tap", "mouse", "leftClick", "rightClick", "cycleWindows"])
+let validButtonNames = Set(["a", "b", "x", "y", "rt", "rb", "ls", "rs", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "back", "menu"])
+let validPrefixes = ["lt+", "lb+"]
+
+func validateBindings(_ config: [String: Binding]) -> [String] {
+    var warnings: [String] = []
+    for (name, binding) in config.sorted(by: { $0.key < $1.key }) {
+        // Validate binding key name
+        var baseName = name
+        for prefix in validPrefixes {
+            if name.hasPrefix(prefix) { baseName = String(name.dropFirst(prefix.count)); break }
+        }
+        if !validButtonNames.contains(baseName) {
+            warnings.append("\"\(name)\": unknown button name \"\(baseName)\"")
+        }
+
+        // Validate binding type
+        if !validBindingTypes.contains(binding.type) {
+            warnings.append("\"\(name)\": unknown type \"\(binding.type)\"")
+        }
+
+        // Validate key/tap have a key
+        if (binding.type == "key" || binding.type == "tap") {
+            if let key = binding.key {
+                if resolveKeyCode(key) == nil {
+                    warnings.append("\"\(name)\": unknown key name \"\(key)\"")
+                }
+            } else {
+                warnings.append("\"\(name)\": type \"\(binding.type)\" requires a \"key\" field")
+            }
+        }
+
+        // Validate mouse button number
+        if binding.type == "mouse" {
+            if let btn = binding.button {
+                if btn < 0 {
+                    warnings.append("\"\(name)\": negative mouse button number \(btn)")
+                }
+            } else {
+                warnings.append("\"\(name)\": type \"mouse\" requires a \"button\" field")
+            }
+        }
+
+        // Validate modifier names
+        for mod in binding.modifiers ?? [] {
+            let valid = ["command", "cmd", "shift", "option", "alt", "control", "ctrl"]
+            if !valid.contains(mod.lowercased()) {
+                warnings.append("\"\(name)\": unknown modifier \"\(mod)\"")
+            }
+        }
+    }
+    return warnings
+}
+
+func showConfigWarnings(_ warnings: [String]) {
+    guard !warnings.isEmpty else { return }
+    let message = warnings.joined(separator: "\n")
+    print("Config warnings:\n\(message)")
+    DispatchQueue.main.async {
+        let alert = NSAlert()
+        alert.messageText = "Config Warnings"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+}
+
+var config = loadConfig()
+var bindings = config.bindings
+var loggingEnabled = config.settings?.logging ?? true
+showConfigWarnings(validateBindings(bindings))
 
 // MARK: - State Tracking
 
 var buttonStates: [String: Bool] = [:]
-var activeBindings: [String: String] = [:]  // button name -> binding key that was activated
+var activeBindingObjects: [String: Binding] = [:]  // button name -> binding that was activated
+
+// Universal mouse button fallback: every button combo gets a sequential number (10-51)
+let canonicalOrder = ["a", "b", "x", "y", "rt", "rb", "ls", "rs", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "back", "menu"]
+
+func fallbackMouseButton(for name: String, ltHeld: Bool, lbHeld: Bool) -> Int {
+    let idx = canonicalOrder.firstIndex(of: name) ?? 0
+    let layerOffset = lbHeld ? 28 : (ltHeld ? 14 : 0)
+    return 10 + layerOffset + idx
+}
 
 // Scroll momentum
 var scrollVelocityX: Float = 0
@@ -263,7 +349,7 @@ func executeBinding(_ binding: Binding, down: Bool) {
         guard down, let name = binding.key, let code = resolveKeyCode(name) else { return }
         tapKey(code, modifiers: resolveModifiers(binding.modifiers ?? []))
     case "mouse":
-        guard let btn = binding.button else { return }
+        guard let btn = binding.button, btn >= 0 else { return }
         pressMouseButton(CGMouseButton(rawValue: UInt32(btn))!, down: down)
     case "leftClick":
         mouseClick(down: down)
@@ -281,24 +367,31 @@ func handleButton(_ name: String, pressed: Bool, ltHeld: Bool, lbHeld: Bool) {
     buttonStates[name] = pressed
 
     if pressed {
-        // Pick binding: LB layer > LT layer > base
+        // Pick binding key based on active modifier layer
         let bindingKey: String
-        if lbHeld, bindings["lb+\(name)"] != nil {
+        if lbHeld {
             bindingKey = "lb+\(name)"
-        } else if ltHeld, bindings["lt+\(name)"] != nil {
+        } else if ltHeld {
             bindingKey = "lt+\(name)"
         } else {
             bindingKey = name
         }
-        activeBindings[name] = bindingKey
-        if let binding = bindings[bindingKey] {
-            executeBinding(binding, down: true)
-            print("\(bindingKey) -> \(describeBinding(binding))")
+
+        // Use config binding if present, otherwise fall back to mouse button
+        let binding: Binding
+        if let b = bindings[bindingKey] {
+            binding = b
+        } else {
+            let mouseBtn = fallbackMouseButton(for: name, ltHeld: ltHeld, lbHeld: lbHeld)
+            binding = Binding(type: "mouse", key: nil, modifiers: nil, button: mouseBtn)
         }
+
+        activeBindingObjects[name] = binding
+        executeBinding(binding, down: true)
+        print("\(bindingKey) -> \(describeBinding(binding))")
     } else {
         // Release the same binding that was activated (prevents stuck keys)
-        if let bindingKey = activeBindings.removeValue(forKey: name),
-           let binding = bindings[bindingKey] {
+        if let binding = activeBindingObjects.removeValue(forKey: name) {
             executeBinding(binding, down: false)
         }
     }
@@ -319,8 +412,8 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     handleButton("rt",         pressed: gamepad.rightTrigger.value > 0.5,             ltHeld: ltHeld, lbHeld: lbHeld)
     handleButton("back",       pressed: gamepad.buttonOptions?.isPressed ?? false,    ltHeld: ltHeld, lbHeld: lbHeld)
     handleButton("menu",       pressed: gamepad.buttonMenu.isPressed,                 ltHeld: ltHeld, lbHeld: lbHeld)
-    handleButton("l3",         pressed: gamepad.leftThumbstickButton?.isPressed ?? false,  ltHeld: ltHeld, lbHeld: lbHeld)
-    handleButton("r3",         pressed: gamepad.rightThumbstickButton?.isPressed ?? false, ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("ls",         pressed: gamepad.leftThumbstickButton?.isPressed ?? false,  ltHeld: ltHeld, lbHeld: lbHeld)
+    handleButton("rs",         pressed: gamepad.rightThumbstickButton?.isPressed ?? false, ltHeld: ltHeld, lbHeld: lbHeld)
     handleButton("dpad_up",    pressed: gamepad.dpad.up.isPressed,                    ltHeld: ltHeld, lbHeld: lbHeld)
     handleButton("dpad_down",  pressed: gamepad.dpad.down.isPressed,                  ltHeld: ltHeld, lbHeld: lbHeld)
     handleButton("dpad_left",  pressed: gamepad.dpad.left.isPressed,                  ltHeld: ltHeld, lbHeld: lbHeld)
@@ -402,9 +495,9 @@ class AppActions: NSObject {
         statusMenuItem.isEnabled = false
         menu.addItem(statusMenuItem)
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Show README", action: #selector(showReadme), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Edit Bindings...", action: #selector(editBindings), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "r"))
-        menu.addItem(NSMenuItem(title: "Show README", action: #selector(showReadme), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
 
@@ -416,7 +509,7 @@ class AppActions: NSObject {
 
     func updateStatus(controllers: [GCController]) {
         if let c = controllers.first {
-            statusMenuItem.title = "\(c.vendorName ?? "Controller") connected"
+            statusMenuItem.title = "\(c.vendorName ?? "Controller") Connected"
         } else {
             statusMenuItem.title = "No controller"
         }
@@ -424,68 +517,61 @@ class AppActions: NSObject {
 
     @objc func showReadme() {
         guard let readmePath = Bundle.main.path(forResource: "README", ofType: "md"),
-              let md = try? String(contentsOfFile: readmePath, encoding: .utf8) else { return }
-        // Basic markdown -> HTML (tables, headers, code blocks, bold, backticks)
-        var html = md
-        // Code blocks
-        html = html.replacingOccurrences(of: "```json\n", with: "<pre><code>")
-        html = html.replacingOccurrences(of: "```bash\n", with: "<pre><code>")
-        html = html.replacingOccurrences(of: "```\n", with: "</code></pre>\n")
-        html = html.replacingOccurrences(of: "```", with: "</code></pre>")
-        // Headers
-        for level in (1...4).reversed() {
-            let prefix = String(repeating: "#", count: level)
-            html = html.replacingOccurrences(of: "\n\(prefix) ", with: "\n<h\(level)>")
-            // Close headers at end of line
-            let lines = html.components(separatedBy: "\n")
-            html = lines.map { line in
-                for l in (1...4).reversed() {
-                    if line.hasPrefix("<h\(l)>") && !line.contains("</h\(l)>") {
-                        return line + "</h\(l)>"
-                    }
-                }
-                return line
-            }.joined(separator: "\n")
-        }
-        // Tables
-        let lines = html.components(separatedBy: "\n")
-        var result: [String] = []
-        var inTable = false
-        for line in lines {
-            if line.hasPrefix("|") && line.hasSuffix("|") {
-                if line.contains("---") { continue }  // separator row
-                let cells = line.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }
-                if !inTable { result.append("<table border='1' cellpadding='6' cellspacing='0' style='border-collapse:collapse'>"); inTable = true }
-                let tag = result.filter({ $0.contains("<tr>") }).isEmpty ? "th" : "td"
-                result.append("<tr>" + cells.map { "<\(tag)>\($0)</\(tag)>" }.joined() + "</tr>")
-            } else {
-                if inTable { result.append("</table>"); inTable = false }
-                result.append(line)
-            }
-        }
-        if inTable { result.append("</table>") }
-        html = result.joined(separator: "\n")
-        // Inline: bold, code
-        while let r = html.range(of: "\\*\\*(.+?)\\*\\*", options: .regularExpression) {
-            let match = String(html[r])
-            html = html.replacingCharacters(in: r, with: "<b>" + match.dropFirst(2).dropLast(2) + "</b>")
-        }
-        while let r = html.range(of: "`([^`]+)`", options: .regularExpression) {
-            let match = String(html[r])
-            html = html.replacingCharacters(in: r, with: "<code>" + match.dropFirst(1).dropLast(1) + "</code>")
-        }
-        // Line breaks for remaining plain lines
-        html = html.replacingOccurrences(of: "\n\n", with: "<br><br>")
-        let page = """
-        <html><head><meta charset="utf-8"><style>
-        body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; }
-        table { margin: 10px 0; } th { background: #f0f0f0; text-align: left; }
-        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
-        pre code { display: block; padding: 12px; background: #f4f4f4; border-radius: 6px; overflow-x: auto; }
-        h1 { border-bottom: 2px solid #ddd; padding-bottom: 8px; }
-        h2 { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-top: 30px; }
-        </style></head><body>\(html)</body></html>
-        """
+              let md = try? String(contentsOfFile: readmePath, encoding: .utf8),
+              let markedPath = Bundle.main.path(forResource: "marked.min", ofType: "js"),
+              let markedJS = try? String(contentsOfFile: markedPath, encoding: .utf8) else { return }
+        let base64 = Data(md.utf8).base64EncodedString()
+        let page = ##"""
+        <!DOCTYPE html>
+        <html><head><meta charset="utf-8"><title>CodeController</title>
+        <script>\##(markedJS)</script>
+        <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'SF Mono','Menlo','Monaco',monospace; background: #0a0a0a; color: #b0b0b0; font-size: 13px; line-height: 1.7; }
+        nav#toc { position: fixed; left: 0; top: 0; width: 200px; height: 100vh; overflow-y: auto; padding: 20px 14px; background: #050505; border-right: 1px solid #1a3a1a; z-index: 10; }
+        nav#toc .toc-title { color: #00ff41; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1a3a1a; }
+        nav#toc a { display: block; color: #666; text-decoration: none; font-size: 11px; padding: 3px 0; transition: color 0.2s; }
+        nav#toc a:hover { color: #00ff41; }
+        nav#toc a.h3 { padding-left: 12px; font-size: 10px; color: #444; }
+        main#content { margin-left: 200px; max-width: 800px; padding: 40px 30px; }
+        h1 { color: #00ff41; border-bottom: 1px solid #1a3a1a; padding-bottom: 10px; font-size: 20px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 16px; }
+        h2 { color: #00cc33; border-bottom: 1px solid #1a2a1a; padding-bottom: 6px; margin-top: 36px; margin-bottom: 12px; font-size: 15px; letter-spacing: 1px; }
+        h3 { color: #00aa2a; margin-top: 24px; margin-bottom: 8px; font-size: 13px; }
+        p { margin: 8px 0; }
+        a { color: #00ff41; text-decoration: none; border-bottom: 1px solid #1a3a1a; }
+        a:hover { border-bottom-color: #00ff41; }
+        ul, ol { padding-left: 20px; margin: 8px 0; }
+        li { margin: 6px 0; }
+        table { margin: 12px 0; border-collapse: collapse; width: 100%; }
+        th { background: #111; color: #00ff41; text-align: left; padding: 8px 12px; border: 1px solid #1a3a1a; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 6px 12px; border: 1px solid #1a2a1a; color: #999; }
+        td:empty { background: #070707; }
+        tr:hover td { background: #0f1a0f; color: #ccc; }
+        code { background: #151515; color: #00ff41; padding: 2px 6px; border-radius: 3px; border: 1px solid #1a3a1a; font-size: 12px; }
+        pre { margin: 12px 0; }
+        pre code { display: block; padding: 14px; background: #0d0d0d; border: 1px solid #1a3a1a; border-radius: 4px; overflow-x: auto; color: #00dd38; border-left: 3px solid #00ff41; }
+        strong { color: #ddd; }
+        em { color: #777; font-style: normal; }
+        @media (max-width: 700px) { nav#toc { display: none; } main#content { margin-left: 0; } }
+        </style>
+        </head><body>
+        <nav id="toc"><div class="toc-title">CodeController</div></nav>
+        <main id="content"></main>
+        <script>
+        const raw = new TextDecoder().decode(Uint8Array.from(atob('\##(base64)'), c => c.charCodeAt(0)));
+        document.getElementById('content').innerHTML = marked.parse(raw);
+        document.querySelectorAll('h2, h3').forEach(h => {
+            const id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            h.id = id;
+            const a = document.createElement('a');
+            a.href = '#' + id;
+            a.textContent = h.textContent;
+            a.className = h.tagName.toLowerCase();
+            document.getElementById('toc').appendChild(a);
+        });
+        </script>
+        </body></html>
+        """##
         let tmpPath = NSTemporaryDirectory() + "codecontroller_readme.html"
         try? page.write(toFile: tmpPath, atomically: true, encoding: .utf8)
         NSWorkspace.shared.open(URL(fileURLWithPath: tmpPath))
@@ -497,8 +583,11 @@ class AppActions: NSObject {
     }
 
     @objc func reloadConfig() {
-        bindings = loadBindings()
+        config = loadConfig()
+        bindings = config.bindings
+        loggingEnabled = config.settings?.logging ?? true
         print("Config reloaded (\(bindings.count) bindings)")
+        showConfigWarnings(validateBindings(bindings))
     }
 
     @objc func quit() {
@@ -508,10 +597,13 @@ class AppActions: NSObject {
 
 // MARK: - Main
 
-freopen("/tmp/codecontroller.log", "a", stdout)
-freopen("/tmp/codecontroller.log", "a", stderr)
-setbuf(stdout, nil)
-print("CodeController started")
+if loggingEnabled {
+    let logPath = NSString("~/Library/Logs/CodeController.log").expandingTildeInPath
+    freopen(logPath, "a", stdout)
+    freopen(logPath, "a", stderr)
+    setbuf(stdout, nil)
+    print("CodeController started")
+}
 
 let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
 if !AXIsProcessTrustedWithOptions(opts) {

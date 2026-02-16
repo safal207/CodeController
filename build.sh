@@ -8,7 +8,9 @@ mkdir -p CodeController.app/Contents/MacOS
 mkdir -p CodeController.app/Contents/Resources
 mv CodeController CodeController.app/Contents/MacOS/
 cp icon.png CodeController.app/Contents/Resources/
+cp icon.icns CodeController.app/Contents/Resources/
 cp README.md CodeController.app/Contents/Resources/
+cp marked.min.js CodeController.app/Contents/Resources/
 
 # Create Info.plist
 cat > CodeController.app/Contents/Info.plist << 'EOF'
@@ -26,6 +28,8 @@ cat > CodeController.app/Contents/Info.plist << 'EOF'
     <string>1.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>CFBundleIconFile</key>
+    <string>icon</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
