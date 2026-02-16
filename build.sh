@@ -11,6 +11,8 @@ cp icon.png CodeController.app/Contents/Resources/
 cp icon.icns CodeController.app/Contents/Resources/
 cp README.md CodeController.app/Contents/Resources/
 cp marked.min.js CodeController.app/Contents/Resources/
+cp readme_template.html CodeController.app/Contents/Resources/
+cp codecontroller_triggers.bttpreset CodeController.app/Contents/Resources/
 
 # Create Info.plist
 cat > CodeController.app/Contents/Info.plist << 'EOF'

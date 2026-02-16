@@ -16,7 +16,7 @@ Sit, stand, or walk around while developing software faster than ever.
 
 - **Right stick** — Smooth scrolling
 
-- **Universal mouse buttons** — Any button combo without a keyboard binding automatically emits a virtual mouse button (10–51), mappable in utilities like [SuperWhisper](https://superwhisper.com) or [BetterTouchTool](https://folivora.ai)
+- **Universal mouse buttons** — Any button combo without a keyboard binding automatically emits a virtual mouse button (10–23), distinguished across modifier layers by held modifier keys (Option for +LT, Control for +LB). Mappable in utilities like [SuperWhisper](https://superwhisper.com) or [BetterTouchTool](https://folivora.ai)
 
 - **JSON config** — All bindings stored in `~/.config/codecontroller.json`, editable without recompiling
 
@@ -24,6 +24,7 @@ Sit, stand, or walk around while developing software faster than ever.
 
 - macOS 10.15+
 - Xbox One wireless controller (known supported — other controllers may work via Apple's Game Controller framework)
+- **Voice transcription** — CodeController replaces your keyboard, so you need a voice-to-text app to type. [SuperWhisper](https://superwhisper.com) is recommended, but [Whisper Transcription](https://goodsnooze.gumroad.com/l/macwhisper), [Talon](https://talonvoice.com), or macOS Dictation also work
 
 ## Setup
 
@@ -46,6 +47,17 @@ Requires Swift toolchain (Xcode or Command Line Tools).
 2. Open SuperWhisper Settings
 3. Set Mouse Shortcut to **Mouse Button 14** (RT)
 
+### BetterTouchTool (Extended Bindings)
+
+[BetterTouchTool](https://folivora.ai) can map any of the virtual mouse buttons (10–23) to system actions that CodeController can't do natively — switching Spaces, launching apps, window snapping, etc. Modifier layers emit the same button numbers but with held modifier keys (Option for +LT, Control for +LB), so BTT can distinguish them by matching on modifier state.
+
+1. Open BetterTouchTool Settings
+2. Enable **Advanced > High Level Mouse Event Recognition**
+3. Import the included preset: **Preset > Import Preset**, then select `codecontroller_triggers.bttpreset` from the app bundle (right-click CodeController.app > Show Package Contents > Contents/Resources) or the [Releases](../../releases) page
+4. The preset maps LT+D-Left / LT+D-Right to switch Spaces (left/right)
+
+Add your own triggers by assigning a mouse button to any action in BetterTouchTool's preferences.
+
 ### Claude Code Keybindings
 
 The default bindings map Y to Tab. Claude Code changed Tab from extended thinking toggle to autocomplete. To restore Tab as the thinking toggle, add this to `~/.claude/keybindings.json`:
@@ -65,7 +77,7 @@ The default bindings map Y to Tab. Claude Code changed Tab from extended thinkin
 
 ## Default Bindings
 
-Every button has a default mouse button number shown in the **#** column. The config file contains keyboard overrides — remove an override to expose the underlying mouse button.
+> **Mouse buttons:** Every button has a default mouse button number shown in the **#** column. All three layers (Base, +LT, +LB) use the same button numbers (10–23) — layers are distinguished by modifier keys held during the event: none for Base, Option for +LT, Control for +LB. The config file contains keyboard overrides — remove an override to expose the underlying mouse button. These virtual mouse buttons can be mapped in apps like SuperWhisper or BetterTouchTool.
 
 ### Sticks
 
@@ -100,43 +112,43 @@ Every button has a default mouse button number shown in the **#** column. The co
 | **Back** | `Ctrl+O` | Toggle transcript | 22 |
 | **Menu** | `/` | Slash commands | 23 |
 
-### +LT
+### +LT (mouse buttons held with Option)
 
 | Button | Key | Action | # |
 |--------|-----|--------|---|
-| **LT+A** | `Space` | Scroll page | 24 |
-| **LT+B** | | | 25 |
-| **LT+X** | | | 26 |
-| **LT+Y** | `Shift+Tab` | Cycle permission mode | 27 |
-| **LT+RT** | | | 28 |
-| **LT+RB** | | | 29 |
-| **LT+LS** | | | 30 |
-| **LT+RS** | | | 31 |
-| **LT+D-Up** | `<Accessibility>` | Cycle windows | 32 |
-| **LT+D-Down** | `<Accessibility>` | Cycle windows | 33 |
-| **LT+D-Left** | `Cmd+Shift+[` | Prev tab | 34 |
-| **LT+D-Right** | `Cmd+Shift+]` | Next tab | 35 |
-| **LT+Back** | `Ctrl+E` | Toggle show all | 36 |
-| **LT+Menu** | | | 37 |
+| **LT+A** | `Space` | Scroll page | 10+Opt |
+| **LT+B** | | | 11+Opt |
+| **LT+X** | | | 12+Opt |
+| **LT+Y** | `Shift+Tab` | Cycle permission mode | 13+Opt |
+| **LT+RT** | | | 14+Opt |
+| **LT+RB** | | | 15+Opt |
+| **LT+LS** | | | 16+Opt |
+| **LT+RS** | | | 17+Opt |
+| **LT+D-Up** | `<Accessibility>` | Cycle windows | 18+Opt |
+| **LT+D-Down** | `<Accessibility>` | Cycle windows | 19+Opt |
+| **LT+D-Left** | `Cmd+Shift+[` | Prev tab | 20+Opt |
+| **LT+D-Right** | `Cmd+Shift+]` | Next tab | 21+Opt |
+| **LT+Back** | `Ctrl+E` | Toggle show all | 22+Opt |
+| **LT+Menu** | | | 23+Opt |
 
-### +LB
+### +LB (mouse buttons held with Control)
 
 | Button | Key | Action | # |
 |--------|-----|--------|---|
-| **LB+A** | | | 38 |
-| **LB+B** | `Cmd+W` | Close tab | 39 |
-| **LB+X** | | | 40 |
-| **LB+Y** | `Cmd+T` | New tab | 41 |
-| **LB+RT** | | | 42 |
-| **LB+RB** | | | 43 |
-| **LB+LS** | | | 44 |
-| **LB+RS** | | | 45 |
-| **LB+D-Up** | | | 46 |
-| **LB+D-Down** | | | 47 |
-| **LB+D-Left** | | | 48 |
-| **LB+D-Right** | | | 49 |
-| **LB+Back** | `Ctrl+B` | Background task | 50 |
-| **LB+Menu** | | | 51 |
+| **LB+A** | | | 10+Ctrl |
+| **LB+B** | `Cmd+W` | Close tab | 11+Ctrl |
+| **LB+X** | | | 12+Ctrl |
+| **LB+Y** | `Cmd+T` | New tab | 13+Ctrl |
+| **LB+RT** | | | 14+Ctrl |
+| **LB+RB** | | | 15+Ctrl |
+| **LB+LS** | | | 16+Ctrl |
+| **LB+RS** | | | 17+Ctrl |
+| **LB+D-Up** | | | 18+Ctrl |
+| **LB+D-Down** | | | 19+Ctrl |
+| **LB+D-Left** | | | 20+Ctrl |
+| **LB+D-Right** | | | 21+Ctrl |
+| **LB+Back** | `Ctrl+B` | Background task | 22+Ctrl |
+| **LB+Menu** | | | 23+Ctrl |
 
 ## Configuration
 

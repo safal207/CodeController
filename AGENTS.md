@@ -34,7 +34,7 @@ Everything lives in `CodeController.swift` (~560 lines):
 - Modifier layers: prefix with `lt+` or `lb+` (e.g., `lt+a`, `lb+dpad_left`)
 - `ls`/`rs` not `l3`/`r3` — migration in `loadBindings()` handles old configs
 - Canonical button order: A, B, X, Y, RT, RB, LS, RS, D-pad, Back, Menu
-- Mouse button numbering: base 10-23, +LT 24-37, +LB 38-51
+- Mouse button numbering: all layers use 10-23, distinguished by modifier keys (none for base, +Option for LT, +Control for LB). Hard cap at button 31 — higher numbers crash WindowServer
 
 ## Gotchas
 

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>CodeController</title>
+<script>{{MARKED_JS}}</script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'SF Mono','Menlo','Monaco',monospace; background: #0a0a0a; color: #b0b0b0; font-size: 13px; line-height: 1.7; }
+nav#toc { position: fixed; left: 0; top: 0; width: 200px; height: 100vh; overflow-y: auto; padding: 20px 14px; background: #050505; border-right: 1px solid #1a3a1a; z-index: 10; }
+nav#toc .toc-title { color: #00ff41; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1a3a1a; }
+nav#toc a { display: block; color: #666; text-decoration: none; font-size: 11px; padding: 3px 0; transition: color 0.2s; }
+nav#toc a:hover { color: #00ff41; }
+nav#toc a.h3 { padding-left: 12px; font-size: 10px; color: #444; }
+main#content { margin-left: 200px; max-width: 800px; padding: 40px 30px; }
+h1 { color: #00ff41; border-bottom: 1px solid #1a3a1a; padding-bottom: 10px; font-size: 20px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 16px; }
+h2 { color: #00cc33; border-bottom: 1px solid #1a2a1a; padding-bottom: 6px; margin-top: 36px; margin-bottom: 12px; font-size: 15px; letter-spacing: 1px; }
+h3 { color: #00aa2a; margin-top: 24px; margin-bottom: 8px; font-size: 13px; }
+p { margin: 8px 0; }
+a { color: #00ff41; text-decoration: none; border-bottom: 1px solid #1a3a1a; }
+a:hover { border-bottom-color: #00ff41; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { margin: 6px 0; }
+table { margin: 12px 0; border-collapse: collapse; width: 100%; }
+th { background: #111; color: #00ff41; text-align: left; padding: 8px 12px; border: 1px solid #1a3a1a; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+td { padding: 6px 12px; border: 1px solid #1a2a1a; color: #999; }
+td:empty { background: #070707; }
+tr:hover td { background: #0f1a0f; color: #ccc; }
+code { background: #151515; color: #00ff41; padding: 2px 6px; border-radius: 3px; border: 1px solid #1a3a1a; font-size: 12px; }
+pre { margin: 12px 0; }
+pre code { display: block; padding: 14px; background: #0d0d0d; border: 1px solid #1a3a1a; border-radius: 4px; overflow-x: auto; color: #00dd38; border-left: 3px solid #00ff41; }
+blockquote { border-left: 3px solid #00ff41; padding: 8px 14px; margin: 12px 0; background: #0d0d0d; color: #ccc; }
+strong { color: #ddd; }
+em { color: #777; font-style: normal; }
+@media (max-width: 700px) { nav#toc { display: none; } main#content { margin-left: 0; } }
+</style>
+</head><body>
+<nav id="toc"><div class="toc-title">CodeController</div></nav>
+<main id="content"></main>
+<script>
+const raw = new TextDecoder().decode(Uint8Array.from(atob('{{MARKDOWN_BASE64}}'), c => c.charCodeAt(0)));
+document.getElementById('content').innerHTML = marked.parse(raw);
+document.querySelectorAll('h2, h3').forEach(h => {
+    const id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    h.id = id;
+    const a = document.createElement('a');
+    a.href = '#' + id;
+    a.textContent = h.textContent;
+    a.className = h.tagName.toLowerCase();
+    document.getElementById('toc').appendChild(a);
+});
+</script>
+</body></html>

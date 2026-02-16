@@ -6,8 +6,14 @@ import CoreGraphics
 
 // MARK: - Binding Configuration
 
+let configPath = NSString("~/.config/codecontroller.json").expandingTildeInPath
+
+enum BindingType: String, Codable {
+    case key, tap, mouse, leftClick, rightClick, cycleWindows
+}
+
 struct Binding: Codable {
-    let type: String          // "key", "tap", "mouse", "leftClick", "rightClick", "cycleWindows"
+    let type: BindingType
     var key: String?          // keyboard key name (for "key" and "tap")
     var modifiers: [String]?  // "command"/"cmd", "shift", "option"/"alt", "control"/"ctrl"
     var button: Int?          // mouse button number (for "mouse")
@@ -32,7 +38,7 @@ let defaultConfigJSON = """
     "b":              { "key":    "escape",      "type": "key"          },
     "x":              { "key":    "backspace",   "type": "key"          },
     "y":              { "key":    "tab",         "type": "key"          },
-    "back":           { "key":    "o",           "type": "key",           "modifiers": ["control"] },
+    "back":           { "key":    "o",           "type": "tap",           "modifiers": ["control"] },
     "menu":           { "key":    "/",           "type": "key"          },
     "dpad_up":        { "key":    "up",          "type": "key"          },
     "dpad_down":      { "key":    "down",        "type": "key"          },
@@ -42,16 +48,16 @@ let defaultConfigJSON = """
     "rs":             {                          "type": "rightClick"   },
 
     "lt+a":           { "key":    "space",       "type": "key"          },
-    "lt+y":           { "key":    "tab",         "type": "key",           "modifiers": ["shift"] },
-    "lt+back":        { "key":    "e",           "type": "key",           "modifiers": ["control"] },
+    "lt+y":           { "key":    "tab",         "type": "tap",           "modifiers": ["shift"] },
+    "lt+back":        { "key":    "e",           "type": "tap",           "modifiers": ["control"] },
     "lt+dpad_up":     {                          "type": "cycleWindows" },
     "lt+dpad_down":   {                          "type": "cycleWindows" },
     "lt+dpad_left":   { "key":    "[",           "type": "tap",           "modifiers": ["command", "shift"] },
     "lt+dpad_right":  { "key":    "]",           "type": "tap",           "modifiers": ["command", "shift"] },
 
-    "lb+b":           { "key":    "w",           "type": "key",           "modifiers": ["command"] },
-    "lb+y":           { "key":    "t",           "type": "key",           "modifiers": ["command"] },
-    "lb+back":        { "key":    "b",           "type": "key",           "modifiers": ["control"] }
+    "lb+b":           { "key":    "w",           "type": "tap",           "modifiers": ["command"] },
+    "lb+y":           { "key":    "t",           "type": "tap",           "modifiers": ["command"] },
+    "lb+back":        { "key":    "b",           "type": "tap",           "modifiers": ["control"] }
   }
 }
 """
@@ -100,22 +106,20 @@ func resolveModifiers(_ names: [String]) -> CGEventFlags {
 
 func describeBinding(_ b: Binding) -> String {
     switch b.type {
-    case "key", "tap":
+    case .key, .tap:
         let mods = (b.modifiers ?? []).map { $0.capitalized }
         let key = (b.key ?? "?").capitalized
         return (mods + [key]).joined(separator: "+")
-    case "mouse":       return "Mouse \(b.button ?? 0)"
-    case "leftClick":   return "Left Click"
-    case "rightClick":  return "Right Click"
-    case "cycleWindows": return "Cycle Windows"
-    default:            return b.type
+    case .mouse:        return "Mouse \(b.button ?? 0)"
+    case .leftClick:    return "Left Click"
+    case .rightClick:   return "Right Click"
+    case .cycleWindows: return "Cycle Windows"
     }
 }
 
 // Load config from file, or write defaults
 func loadConfig() -> Config {
-    let configDir = NSString("~/.config").expandingTildeInPath
-    let configPath = "\(configDir)/codecontroller.json"
+    let configDir = (configPath as NSString).deletingLastPathComponent
 
     if FileManager.default.fileExists(atPath: configPath) {
         do {
@@ -151,7 +155,6 @@ func loadConfig() -> Config {
     return try! JSONDecoder().decode(Config.self, from: defaultConfigJSON.data(using: .utf8)!)
 }
 
-let validBindingTypes = Set(["key", "tap", "mouse", "leftClick", "rightClick", "cycleWindows"])
 let validButtonNames = Set(["a", "b", "x", "y", "rt", "rb", "ls", "rs", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "back", "menu"])
 let validPrefixes = ["lt+", "lb+"]
 
@@ -167,24 +170,19 @@ func validateBindings(_ config: [String: Binding]) -> [String] {
             warnings.append("\"\(name)\": unknown button name \"\(baseName)\"")
         }
 
-        // Validate binding type
-        if !validBindingTypes.contains(binding.type) {
-            warnings.append("\"\(name)\": unknown type \"\(binding.type)\"")
-        }
-
         // Validate key/tap have a key
-        if (binding.type == "key" || binding.type == "tap") {
+        if binding.type == .key || binding.type == .tap {
             if let key = binding.key {
                 if resolveKeyCode(key) == nil {
                     warnings.append("\"\(name)\": unknown key name \"\(key)\"")
                 }
             } else {
-                warnings.append("\"\(name)\": type \"\(binding.type)\" requires a \"key\" field")
+                warnings.append("\"\(name)\": type \"\(binding.type.rawValue)\" requires a \"key\" field")
             }
         }
 
         // Validate mouse button number
-        if binding.type == "mouse" {
+        if binding.type == .mouse {
             if let btn = binding.button {
                 if btn < 0 {
                     warnings.append("\"\(name)\": negative mouse button number \(btn)")
@@ -224,29 +222,46 @@ var bindings = config.bindings
 var loggingEnabled = config.settings?.logging ?? true
 showConfigWarnings(validateBindings(bindings))
 
-// MARK: - State Tracking
+// MARK: - Constants
 
-var buttonStates: [String: Bool] = [:]
-var activeBindingObjects: [String: Binding] = [:]  // button name -> binding that was activated
+// Mouse cursor (left stick)
+let mouseDeadzone: Float = 0.10
+let mouseSpeed: Double = 20.0
+let mouseAccel: Double = 0.35
+let mouseDecay: Double = 0.7
+
+// Scroll (right stick)
+let scrollDeadzone: Float = 0.02
+let scrollSpeed: Float = 30.0
+let scrollAccel: Float = 0.15
+let scrollDecay: Float = 0.92
+let scrollFlat: Float = 1.0
+let scrollCurve: Float = 5.5
 
 // Universal mouse button fallback: every button combo gets a sequential number (10-51)
 let canonicalOrder = ["a", "b", "x", "y", "rt", "rb", "ls", "rs", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "back", "menu"]
 
-func fallbackMouseButton(for name: String, ltHeld: Bool, lbHeld: Bool) -> Int {
+func fallbackMouseButton(for name: String) -> Int {
     let idx = canonicalOrder.firstIndex(of: name) ?? 0
-    let layerOffset = lbHeld ? 28 : (ltHeld ? 14 : 0)
-    return 10 + layerOffset + idx
+    return 10 + idx
 }
 
-// Scroll momentum
+// Modifier flags attached to fallback mouse events to distinguish layers
+func fallbackModifiers(ltHeld: Bool, lbHeld: Bool) -> CGEventFlags {
+    if lbHeld { return .maskControl }
+    if ltHeld { return .maskAlternate }
+    return []
+}
+
+// MARK: - State
+
+var buttonStates: [String: Bool] = [:]
+var activeBindingObjects: [String: Binding] = [:]  // button name -> binding that was activated
+var activeMouseModifiers: [String: CGEventFlags] = [:]  // button name -> modifier flags for fallback mouse
 var scrollVelocityX: Float = 0
 var scrollVelocityY: Float = 0
-
-// Mouse momentum
 var mouseVelocityX: Double = 0
 var mouseVelocityY: Double = 0
-
-// Mouse click state
 var mouseDown = false
 var rightMouseDown = false
 
@@ -260,6 +275,8 @@ func pressKey(_ keyCode: CGKeyCode, down: Bool, modifiers: CGEventFlags = []) {
     event?.post(tap: .cgSessionEventTap)
 }
 
+// Posts explicit modifier key-down/up events around the main key.
+// Required for system shortcuts (e.g. Cmd+Shift+[) that don't register from just setting CGEvent flags.
 func tapKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags = []) {
     let modifierKeys: [(CGEventFlags, CGKeyCode)] = [
         (.maskCommand, 55), (.maskShift, 56), (.maskAlternate, 58), (.maskControl, 59)
@@ -279,11 +296,12 @@ func tapKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags = []) {
     }
 }
 
-func pressMouseButton(_ button: CGMouseButton, down: Bool) {
+func pressMouseButton(_ button: CGMouseButton, down: Bool, modifiers: CGEventFlags = []) {
     let location = CGEvent(source: nil)?.location ?? .zero
     let eventType: CGEventType = down ? .otherMouseDown : .otherMouseUp
     if let event = CGEvent(mouseEventSource: eventSource, mouseType: eventType, mouseCursorPosition: location, mouseButton: button) {
         event.setIntegerValueField(.mouseEventButtonNumber, value: Int64(button.rawValue))
+        if !modifiers.isEmpty { event.flags = modifiers }
         event.post(tap: .cgSessionEventTap)
     }
 }
@@ -340,25 +358,23 @@ func cycleWindows() {
 
 // MARK: - Binding Dispatch
 
-func executeBinding(_ binding: Binding, down: Bool) {
+func executeBinding(_ binding: Binding, down: Bool, mouseFlags: CGEventFlags = []) {
     switch binding.type {
-    case "key":
+    case .key:
         guard let name = binding.key, let code = resolveKeyCode(name) else { return }
         pressKey(code, down: down, modifiers: resolveModifiers(binding.modifiers ?? []))
-    case "tap":
+    case .tap:
         guard down, let name = binding.key, let code = resolveKeyCode(name) else { return }
         tapKey(code, modifiers: resolveModifiers(binding.modifiers ?? []))
-    case "mouse":
-        guard let btn = binding.button, btn >= 0 else { return }
-        pressMouseButton(CGMouseButton(rawValue: UInt32(btn))!, down: down)
-    case "leftClick":
+    case .mouse:
+        guard let btn = binding.button, btn >= 0, btn <= 31 else { return }
+        pressMouseButton(CGMouseButton(rawValue: UInt32(btn))!, down: down, modifiers: mouseFlags)
+    case .leftClick:
         mouseClick(down: down)
-    case "rightClick":
+    case .rightClick:
         rightClick(down: down)
-    case "cycleWindows":
+    case .cycleWindows:
         if down { cycleWindows() }
-    default:
-        break
     }
 }
 
@@ -379,20 +395,26 @@ func handleButton(_ name: String, pressed: Bool, ltHeld: Bool, lbHeld: Bool) {
 
         // Use config binding if present, otherwise fall back to mouse button
         let binding: Binding
+        let mouseFlags: CGEventFlags
         if let b = bindings[bindingKey] {
             binding = b
+            mouseFlags = []
         } else {
-            let mouseBtn = fallbackMouseButton(for: name, ltHeld: ltHeld, lbHeld: lbHeld)
-            binding = Binding(type: "mouse", key: nil, modifiers: nil, button: mouseBtn)
+            let mouseBtn = fallbackMouseButton(for: name)
+            binding = Binding(type: .mouse, key: nil, modifiers: nil, button: mouseBtn)
+            mouseFlags = fallbackModifiers(ltHeld: ltHeld, lbHeld: lbHeld)
         }
 
         activeBindingObjects[name] = binding
-        executeBinding(binding, down: true)
-        print("\(bindingKey) -> \(describeBinding(binding))")
+        activeMouseModifiers[name] = mouseFlags
+        executeBinding(binding, down: true, mouseFlags: mouseFlags)
+        let modDesc = mouseFlags.contains(.maskControl) ? " +Ctrl" : mouseFlags.contains(.maskAlternate) ? " +Opt" : ""
+        print("\(bindingKey) -> \(describeBinding(binding))\(modDesc)")
     } else {
         // Release the same binding that was activated (prevents stuck keys)
         if let binding = activeBindingObjects.removeValue(forKey: name) {
-            executeBinding(binding, down: false)
+            let mouseFlags = activeMouseModifiers.removeValue(forKey: name) ?? []
+            executeBinding(binding, down: false, mouseFlags: mouseFlags)
         }
     }
 }
@@ -422,10 +444,6 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     // --- Left stick: mouse movement with momentum ---
     let mouseX = gamepad.leftThumbstick.xAxis.value
     let mouseY = gamepad.leftThumbstick.yAxis.value
-    let mouseDeadzone: Float = 0.10
-    let mouseSpeed: Double = 20.0
-    let mouseAccel: Double = 0.35
-    let mouseDecay: Double = 0.7
 
     if abs(mouseX) > mouseDeadzone || abs(mouseY) > mouseDeadzone {
         let curvedX = (mouseX > 0 ? 1.0 : -1.0) * pow(Double(abs(mouseX)), 1.5) * mouseSpeed
@@ -444,25 +462,20 @@ func pollController(_ gamepad: GCExtendedGamepad) {
     // --- Right stick: scrolling with momentum ---
     let scrollX = gamepad.rightThumbstick.xAxis.value
     let scrollY = gamepad.rightThumbstick.yAxis.value
-    let deadzone: Float = 0.02
-    let scrollSpeed: Float = 30.0
-    let accel: Float = 0.15
 
-    if abs(scrollX) > deadzone || abs(scrollY) > deadzone {
-        let curvedX = (scrollX > 0 ? 1.0 : -1.0) * pow(abs(scrollX), 5.5) * scrollSpeed
-        let curvedY = (scrollY > 0 ? 1.0 : -1.0) * pow(abs(scrollY), 5.5) * scrollSpeed
-        scrollVelocityX += (curvedX - scrollVelocityX) * accel
-        scrollVelocityY += (curvedY - scrollVelocityY) * accel
+    if abs(scrollX) > scrollDeadzone || abs(scrollY) > scrollDeadzone {
+        let curvedX = (scrollX > 0 ? 1.0 : -1.0) * pow(abs(scrollX), scrollCurve) * scrollSpeed
+        let curvedY = (scrollY > 0 ? 1.0 : -1.0) * pow(abs(scrollY), scrollCurve) * scrollSpeed
+        scrollVelocityX += (curvedX - scrollVelocityX) * scrollAccel
+        scrollVelocityY += (curvedY - scrollVelocityY) * scrollAccel
     } else {
-        let decay: Float = 0.92
-        let flat: Float = 1.0
-        scrollVelocityX *= decay
-        scrollVelocityY *= decay
-        if scrollVelocityX > flat { scrollVelocityX -= flat }
-        else if scrollVelocityX < -flat { scrollVelocityX += flat }
+        scrollVelocityX *= scrollDecay
+        scrollVelocityY *= scrollDecay
+        if scrollVelocityX > scrollFlat { scrollVelocityX -= scrollFlat }
+        else if scrollVelocityX < -scrollFlat { scrollVelocityX += scrollFlat }
         else { scrollVelocityX = 0 }
-        if scrollVelocityY > flat { scrollVelocityY -= flat }
-        else if scrollVelocityY < -flat { scrollVelocityY += flat }
+        if scrollVelocityY > scrollFlat { scrollVelocityY -= scrollFlat }
+        else if scrollVelocityY < -scrollFlat { scrollVelocityY += scrollFlat }
         else { scrollVelocityY = 0 }
     }
 
@@ -519,66 +532,18 @@ class AppActions: NSObject {
         guard let readmePath = Bundle.main.path(forResource: "README", ofType: "md"),
               let md = try? String(contentsOfFile: readmePath, encoding: .utf8),
               let markedPath = Bundle.main.path(forResource: "marked.min", ofType: "js"),
-              let markedJS = try? String(contentsOfFile: markedPath, encoding: .utf8) else { return }
-        let base64 = Data(md.utf8).base64EncodedString()
-        let page = ##"""
-        <!DOCTYPE html>
-        <html><head><meta charset="utf-8"><title>CodeController</title>
-        <script>\##(markedJS)</script>
-        <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'SF Mono','Menlo','Monaco',monospace; background: #0a0a0a; color: #b0b0b0; font-size: 13px; line-height: 1.7; }
-        nav#toc { position: fixed; left: 0; top: 0; width: 200px; height: 100vh; overflow-y: auto; padding: 20px 14px; background: #050505; border-right: 1px solid #1a3a1a; z-index: 10; }
-        nav#toc .toc-title { color: #00ff41; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1a3a1a; }
-        nav#toc a { display: block; color: #666; text-decoration: none; font-size: 11px; padding: 3px 0; transition: color 0.2s; }
-        nav#toc a:hover { color: #00ff41; }
-        nav#toc a.h3 { padding-left: 12px; font-size: 10px; color: #444; }
-        main#content { margin-left: 200px; max-width: 800px; padding: 40px 30px; }
-        h1 { color: #00ff41; border-bottom: 1px solid #1a3a1a; padding-bottom: 10px; font-size: 20px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 16px; }
-        h2 { color: #00cc33; border-bottom: 1px solid #1a2a1a; padding-bottom: 6px; margin-top: 36px; margin-bottom: 12px; font-size: 15px; letter-spacing: 1px; }
-        h3 { color: #00aa2a; margin-top: 24px; margin-bottom: 8px; font-size: 13px; }
-        p { margin: 8px 0; }
-        a { color: #00ff41; text-decoration: none; border-bottom: 1px solid #1a3a1a; }
-        a:hover { border-bottom-color: #00ff41; }
-        ul, ol { padding-left: 20px; margin: 8px 0; }
-        li { margin: 6px 0; }
-        table { margin: 12px 0; border-collapse: collapse; width: 100%; }
-        th { background: #111; color: #00ff41; text-align: left; padding: 8px 12px; border: 1px solid #1a3a1a; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-        td { padding: 6px 12px; border: 1px solid #1a2a1a; color: #999; }
-        td:empty { background: #070707; }
-        tr:hover td { background: #0f1a0f; color: #ccc; }
-        code { background: #151515; color: #00ff41; padding: 2px 6px; border-radius: 3px; border: 1px solid #1a3a1a; font-size: 12px; }
-        pre { margin: 12px 0; }
-        pre code { display: block; padding: 14px; background: #0d0d0d; border: 1px solid #1a3a1a; border-radius: 4px; overflow-x: auto; color: #00dd38; border-left: 3px solid #00ff41; }
-        strong { color: #ddd; }
-        em { color: #777; font-style: normal; }
-        @media (max-width: 700px) { nav#toc { display: none; } main#content { margin-left: 0; } }
-        </style>
-        </head><body>
-        <nav id="toc"><div class="toc-title">CodeController</div></nav>
-        <main id="content"></main>
-        <script>
-        const raw = new TextDecoder().decode(Uint8Array.from(atob('\##(base64)'), c => c.charCodeAt(0)));
-        document.getElementById('content').innerHTML = marked.parse(raw);
-        document.querySelectorAll('h2, h3').forEach(h => {
-            const id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-            h.id = id;
-            const a = document.createElement('a');
-            a.href = '#' + id;
-            a.textContent = h.textContent;
-            a.className = h.tagName.toLowerCase();
-            document.getElementById('toc').appendChild(a);
-        });
-        </script>
-        </body></html>
-        """##
+              let markedJS = try? String(contentsOfFile: markedPath, encoding: .utf8),
+              let templatePath = Bundle.main.path(forResource: "readme_template", ofType: "html"),
+              let template = try? String(contentsOfFile: templatePath, encoding: .utf8) else { return }
+        let page = template
+            .replacingOccurrences(of: "{{MARKED_JS}}", with: markedJS)
+            .replacingOccurrences(of: "{{MARKDOWN_BASE64}}", with: Data(md.utf8).base64EncodedString())
         let tmpPath = NSTemporaryDirectory() + "codecontroller_readme.html"
         try? page.write(toFile: tmpPath, atomically: true, encoding: .utf8)
         NSWorkspace.shared.open(URL(fileURLWithPath: tmpPath))
     }
 
     @objc func editBindings() {
-        let configPath = NSString("~/.config/codecontroller.json").expandingTildeInPath
         NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
     }
 

@@ -1,0 +1,44 @@
+[
+  {
+    "BTTLastUpdatedAt" : 1771282978.4683361,
+    "BTTTriggerType" : 1020,
+    "BTTTriggerTypeDescriptionReadOnly" : "Button 20",
+    "BTTTriggerClass" : "BTTTriggerTypeNormalMouse",
+    "BTTUUID" : "5F69E69B-4318-45A5-BF89-E373723ECCD6",
+    "BTTRequiredModifierKeys" : 262144,
+    "BTTOrder" : 0,
+    "BTTActionsToExecute" : [
+      {
+        "BTTLastUpdatedAt" : 1771282383.8065581,
+        "BTTTriggerParentUUID" : "5F69E69B-4318-45A5-BF89-E373723ECCD6",
+        "BTTIsPureAction" : true,
+        "BTTTriggerClass" : "BTTTriggerTypeNormalMouse",
+        "BTTUUID" : "2435F5D4-6798-44E9-83DC-FA857AFE9713",
+        "BTTPredefinedActionType" : 113,
+        "BTTPredefinedActionName" : "Move Left a Space",
+        "BTTOrder" : 69
+      }
+    ]
+  },
+  {
+    "BTTLastUpdatedAt" : 1771283030.433974,
+    "BTTTriggerType" : 1021,
+    "BTTTriggerTypeDescriptionReadOnly" : "Button 21",
+    "BTTTriggerClass" : "BTTTriggerTypeNormalMouse",
+    "BTTUUID" : "8AB8FA3C-8A87-4B6E-85E8-6A3985FEC862",
+    "BTTRequiredModifierKeys" : 262144,
+    "BTTOrder" : 1,
+    "BTTActionsToExecute" : [
+      {
+        "BTTLastUpdatedAt" : 1771282399.4730711,
+        "BTTTriggerParentUUID" : "8AB8FA3C-8A87-4B6E-85E8-6A3985FEC862",
+        "BTTIsPureAction" : true,
+        "BTTTriggerClass" : "BTTTriggerTypeNormalMouse",
+        "BTTUUID" : "C7CD53EF-039F-4C14-A202-E9FD80BB1372",
+        "BTTPredefinedActionType" : 114,
+        "BTTPredefinedActionName" : "Move Right a Space",
+        "BTTOrder" : 70
+      }
+    ]
+  }
+]
