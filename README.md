@@ -77,12 +77,12 @@ The default bindings map Y to Tab. Claude Code changed Tab from extended thinkin
 
 ## Default Bindings
 
-> **Mouse buttons:** Every button has a default mouse button number shown in the **#** column. All three layers (Base, +LT, +LB) use the same button numbers (10–23) — layers are distinguished by modifier keys held during the event: none for Base, Option for +LT, Control for +LB. The config file contains keyboard overrides — remove an override to expose the underlying mouse button. These virtual mouse buttons can be mapped in apps like SuperWhisper or BetterTouchTool.
+> **Mouse buttons:** Every button has a default mouse button number shown in the **Mouse #** column. All three layers (Base, +LT, +LB) use the same button numbers (10–23) — layers are distinguished by modifier keys held during the event: none for Base, Option for +LT, Control for +LB. The config file contains keyboard overrides — remove an override to expose the underlying mouse button. These virtual mouse buttons can be mapped in apps like SuperWhisper or BetterTouchTool.
 
 ### Sticks
 
-| Input | Action | # |
-|-------|--------|---|
+| Input | Action | Mouse # |
+|-------|--------|---------|
 | Left Stick | Mouse cursor | |
 | Left Stick Click | Left click | 16 |
 | Right Stick | Scroll | |
@@ -97,8 +97,8 @@ The default bindings map Y to Tab. Claude Code changed Tab from extended thinkin
 
 ### Base
 
-| Button | Key | Action | # |
-|--------|-----|--------|---|
+| Button | Key | Action | Mouse # |
+|--------|-----|--------|---------|
 | **A** | `Return` | Submit | 10 |
 | **B** | `Escape` | Cancel | 11 |
 | **X** | `Backspace` | Delete | 12 |
@@ -114,8 +114,8 @@ The default bindings map Y to Tab. Claude Code changed Tab from extended thinkin
 
 ### +LT (mouse buttons held with Option)
 
-| Button | Key | Action | # |
-|--------|-----|--------|---|
+| Button | Key | Action | Mouse # |
+|--------|-----|--------|---------|
 | **LT+A** | `Space` | Scroll page | 10+Opt |
 | **LT+B** | | | 11+Opt |
 | **LT+X** | | | 12+Opt |
@@ -133,8 +133,8 @@ The default bindings map Y to Tab. Claude Code changed Tab from extended thinkin
 
 ### +LB (mouse buttons held with Control)
 
-| Button | Key | Action | # |
-|--------|-----|--------|---|
+| Button | Key | Action | Mouse # |
+|--------|-----|--------|---------|
 | **LB+A** | | | 10+Ctrl |
 | **LB+B** | `Cmd+W` | Close tab | 11+Ctrl |
 | **LB+X** | | | 12+Ctrl |
